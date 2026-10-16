@@ -1,6 +1,6 @@
-/// SUPABASE CLIENT INITIALIZATION
+// SUPABASE CLIENT INITIALIZATION
 const SUPABASE_URL = "https://yfyskcjmylezzuloknx.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_-UoN9IlACEQ6eajXFw2-cA_kgQA9kXY";
+const SUPABASE_ANON_KEY = "sb_secret_X9_JOMTEiyH5JwqGZNpmDA_Hu0rIbap";
 const supabaseClient = supabase.createClient(SUPABASE_URL.trim(), SUPABASE_ANON_KEY.trim());
 
 
