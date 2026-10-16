@@ -262,27 +262,91 @@ input:focus, select:focus, textarea:focus {
 /* ADMIN DASHBOARD LAYOUT */
 .admin-wrapper {
   display: flex;
+  flex-direction: column;
   width: 100vw;
   min-height: 100vh;
   position: relative;
 }
 
-.admin-sidebar {
-  width: 220px;
-  background: #141414;
-  border-right: 1px solid var(--card-border);
+.admin-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  background: var(--bg-color);
+  overflow-y: auto;
+}
+
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.topbar-left h3 {
+  color: var(--gold-primary);
+  font-size: 1rem;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.toggle-btn-topright {
+  background: none;
+  border: 1px solid var(--gold-primary);
+  color: var(--gold-primary);
+  font-size: 1.1rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Admin Sidebar Positioned from Right */
+.admin-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 240px;
+  height: 100vh;
+  background: #141414;
+  border-left: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
   transition: transform 0.3s ease;
-  z-index: 100;
+  z-index: 1000;
+  box-shadow: -4px 0 15px rgba(0,0,0,0.5);
+}
+
+.admin-sidebar.open {
+  transform: translateX(0);
 }
 
 .sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 16px;
   border-bottom: 1px solid var(--card-border);
   font-size: 0.9rem;
   font-weight: bold;
   color: var(--gold-primary);
+}
+
+.close-sidebar-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
 }
 
 .sidebar-menu {
@@ -307,44 +371,7 @@ input:focus, select:focus, textarea:focus {
 .sidebar-menu li a:hover, .sidebar-menu li a.active {
   background: var(--card-bg);
   color: var(--gold-primary);
-  border-left: 3px solid var(--gold-primary);
-}
-
-.admin-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-color);
-  overflow-y: auto;
-}
-
-.admin-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--card-border);
-}
-
-.topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.toggle-btn {
-  background: none;
-  border: none;
-  color: var(--gold-primary);
-  font-size: 1.2rem;
-  cursor: pointer;
-}
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 15px;
+  border-right: 3px solid var(--gold-primary);
 }
 
 .notification-bell {
@@ -372,8 +399,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .admin-avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1px solid var(--gold-primary);
 }
@@ -416,7 +443,6 @@ input:focus, select:focus, textarea:focus {
   color: var(--gold-primary);
 }
 
-/* Admin Management Content Area */
 .admin-content-area {
   padding: 20px;
   max-width: 900px;
@@ -426,14 +452,6 @@ input:focus, select:focus, textarea:focus {
   color: var(--gold-primary);
   margin-bottom: 15px;
   font-size: 1.1rem;
-}
-
-.admin-form-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
 }
 
 .members-table {
@@ -608,41 +626,4 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
   align-items: center;
   gap: 8px;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 15px;
-}
-
-.sound-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px;
-  background: #121212;
-  border-radius: 4px;
-  border: 1px solid var(--card-border);
-}
-
-.btn-sm-preview {
-  background: var(--gold-primary);
-  color: #000;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.75rem;
-}
-
-@media (max-width: 768px) {
-  .admin-sidebar {
-    position: absolute;
-    height: 100%;
-    transform: translateX(-100%);
-  }
-  .admin-sidebar.open {
-    transform: translateX(0);
-  }
 }
