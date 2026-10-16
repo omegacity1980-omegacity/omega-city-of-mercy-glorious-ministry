@@ -1,7 +1,8 @@
-// SUPABASE CLIENT INITIALIZATION
+/// SUPABASE CLIENT INITIALIZATION
 const SUPABASE_URL = "https://yfyskcjmylezzuloknx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_-UoN9IlACEQ6eajXFw2-cA_kgQA9kXY";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL.trim(), SUPABASE_ANON_KEY.trim());
+
 
 document.addEventListener("DOMContentLoaded", async () => {
   await initDuesConfig();
