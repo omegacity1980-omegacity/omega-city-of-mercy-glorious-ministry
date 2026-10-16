@@ -101,3 +101,75 @@ function toggleSidebar() {
   const sidebar = document.getElementById("admin-sidebar");
   sidebar.classList.toggle("open");
 }
+// Dynamic Member Dashboard based on Group
+function routeUserDashboard(user) {
+  const container = document.getElementById("view-container");
+  
+  // Choose header color or badge title based on group
+  let groupTitle = "Member Dashboard";
+  if (user.group === "men") groupTitle = "Men Fellowship Dashboard";
+  else if (user.group === "women") groupTitle = "Women Fellowship Dashboard";
+  else if (user.group === "youth") groupTitle = "Youth Fellowship Dashboard";
+
+  container.innerHTML = `
+    <div class="member-dashboard-wrapper">
+      <!-- Top Member Header -->
+      <header class="member-topbar">
+        <div class="member-profile-section">
+          <img src="${user.profilePic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
+          <div>
+            <h4>${user.fullName}</h4>
+            <span class="member-id-tag">ID: OCM-${user.phone.slice(-4)}</span> | <span class="member-phone-tag">${user.phone}</span>
+          </div>
+        </div>
+        <div class="member-topbar-right">
+          <div class="notification-bell" onclick="alert('No new notifications')">
+            <i class="fa-solid fa-bell"></i>
+            <span class="bell-badge">1</span>
+          </div>
+          <button onclick="logout()" class="btn-logout" title="Logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+      </header>
+
+      <!-- Main Member Content Area -->
+      <div class="member-content">
+        <div class="welcome-banner">
+          <h2>${groupTitle} ${user.isWorker ? '<span class="workforce-badge">| Workforce</span>' : ''}</h2>
+          <p class="slogan-text">Omega City Of Mercy - Keeping financial records transparent.</p>
+        </div>
+
+        <!-- Dashboard Cards (Read-Only) -->
+        <div class="member-card-grid">
+          <div class="m-card">
+            <h4>Total Dues Paid</h4>
+            <p>₦0.00</p>
+          </div>
+          <div class="m-card">
+            <h4>Amount Owing</h4>
+            <p>₦0.00</p>
+          </div>
+          <div class="m-card">
+            <h4>Current Dues</h4>
+            <p>₦1,000</p>
+          </div>
+          <div class="m-card">
+            <h4>Advance Dues</h4>
+            <p>₦0.00</p>
+          </div>
+          <div class="m-card">
+            <h4>Dues Rating</h4>
+            <p>0%</p>
+          </div>
+          <div class="m-card">
+            <h4>Project Contributions</h4>
+            <p>₦0.00</p>
+          </div>
+        </div>
+
+        <div class="read-only-notice">
+          <i class="fa-solid fa-lock"></i> Financial records are read-only for members. Transparency is maintained.
+        </div>
+      </div>
+    </div>
+  `;
+}
