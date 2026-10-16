@@ -1,17 +1,4 @@
-// Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-      console.log('PWA Service Worker registered:', reg);
-    }).catch(err => {
-      console.error('Service Worker registration failed:', err);
-    });
-  });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-  initDuesConfig();
-  
   // 1. 6-Second Loading Screen Timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
@@ -35,109 +22,6 @@ function getUsers() {
 
 function saveUsers(users) {
   localStorage.setItem("omega_users", JSON.stringify(users));
-}
-
-function getDuesPayments() {
-  return JSON.parse(localStorage.getItem("omega_dues_payments")) || [];
-}
-
-function saveDuesPayments(payments) {
-  localStorage.setItem("omega_dues_payments", JSON.stringify(payments));
-}
-
-function getDuesRates() {
-  return JSON.parse(localStorage.getItem("omega_dues_rates")) || [
-    { effectiveFrom: "2026-01", rate: 500, admin: "System", dateSet: new Date().toISOString() }
-  ];
-}
-
-function saveDuesRates(rates) {
-  localStorage.setItem("omega_dues_rates", JSON.stringify(rates));
-}
-
-function initDuesConfig() {
-  if (!localStorage.getItem("omega_dues_rates")) {
-    saveDuesRates([
-      { effectiveFrom: "2026-01", rate: 500, admin: "System", dateSet: new Date().toISOString() }
-    ]);
-  }
-}
-
-// Financial Ledger Engine Functions (Starting Jan 2026)
-function getRateForMonth(year, monthIndex) { // monthIndex: 0 = Jan
-  const monthStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-  const rates = getDuesRates().sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
-  
-  let currentRate = rates[0].rate;
-  for (let r of rates) {
-    if (r.effectiveFrom <= monthStr) {
-      currentRate = r.rate;
-    } else {
-      break;
-    }
-  }
-  return currentRate;
-}
-
-function calculateMemberDues(phone) {
-  const payments = getDuesPayments().filter(p => p.memberPhone === phone);
-  let totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed
-
-  // Build monthly ledger list starting Jan 2026
-  let monthLedger = [];
-  let startYear = 2026;
-
-  for (let y = startYear; y <= currentYear; y++) {
-    let endMonth = (y === currentYear) ? currentMonth : 11;
-    for (let m = 0; m <= endMonth; m++) {
-      let required = getRateForMonth(y, m);
-      let monthName = new Date(y, m, 1).toLocaleString('default', { month: 'short' });
-      monthLedger.push({
-        year: y,
-        month: m,
-        label: `${monthName} ${y}`,
-        required: required,
-        paid: 0,
-        status: 'unpaid'
-      });
-    }
-  }
-
-  // Allocate total payments starting from oldest unpaid month
-  let remainingPool = totalPaid;
-  let totalRequiredTillDate = 0;
-
-  monthLedger.forEach(item => {
-    totalRequiredTillDate += item.required;
-    if (remainingPool >= item.required) {
-      item.paid = item.required;
-      item.status = 'paid';
-      remainingPool -= item.required;
-    } else if (remainingPool > 0) {
-      item.paid = remainingPool;
-      item.status = 'partial';
-      remainingPool = 0;
-    } else {
-      item.paid = 0;
-      item.status = 'unpaid';
-    }
-  });
-
-  let advanceDues = remainingPool; // Leftover goes to future months
-  let amountOwing = totalRequiredTillDate > totalPaid ? (totalRequiredTillDate - totalPaid) : 0;
-  let duesRating = totalRequiredTillDate > 0 ? Math.round((totalPaid / totalRequiredTillDate) * 100) : 100;
-
-  return {
-    totalPaid,
-    amountOwing,
-    advanceDues,
-    duesRating,
-    ledger: monthLedger
-  };
 }
 
 // Render Authentication Choice Screen
@@ -202,18 +86,6 @@ function routeUserDashboard(user) {
   const container = document.getElementById("view-container");
   let groupTitle = `${user.group.toUpperCase()} Fellowship Dashboard`;
 
-  const financials = calculateMemberDues(user.phone);
-  const currentMonthRate = getRateForMonth(new Date().getFullYear(), new Date().getMonth());
-
-  let historyRows = financials.ledger.map(item => `
-    <tr>
-      <td>${item.label}</td>
-      <td>₦${item.required.toLocaleString()}</td>
-      <td>₦${item.paid.toLocaleString()}</td>
-      <td><span class="badge ${item.status}">${item.status.toUpperCase()}</span></td>
-    </tr>
-  `).join("");
-
   container.innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
@@ -242,23 +114,23 @@ function routeUserDashboard(user) {
         <div class="member-card-grid">
           <div class="m-card">
             <h4>Total Dues Paid</h4>
-            <p>₦${financials.totalPaid.toLocaleString()}</p>
+            <p>₦0.00</p>
           </div>
           <div class="m-card">
             <h4>Amount Owing</h4>
-            <p style="color: ${financials.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${financials.amountOwing.toLocaleString()}</p>
+            <p>₦0.00</p>
           </div>
           <div class="m-card">
-            <h4>Current Monthly Rate</h4>
-            <p>₦${currentMonthRate.toLocaleString()}</p>
+            <h4>Current Dues</h4>
+            <p>₦1,000</p>
           </div>
           <div class="m-card">
             <h4>Advance Dues</h4>
-            <p>₦${financials.advanceDues.toLocaleString()}</p>
+            <p>₦0.00</p>
           </div>
           <div class="m-card">
             <h4>Dues Rating</h4>
-            <p>${financials.duesRating}%</p>
+            <p>0%</p>
           </div>
           <div class="m-card">
             <h4>Project Contributions</h4>
@@ -266,25 +138,8 @@ function routeUserDashboard(user) {
           </div>
         </div>
 
-        <div class="admin-content-area" style="padding: 0; margin-bottom: 20px;">
-          <h3 style="font-size:0.95rem;">Monthly Dues Breakdown (Since Jan 2026)</h3>
-          <table class="members-table">
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Required</th>
-                <th>Paid</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${historyRows}
-            </tbody>
-          </table>
-        </div>
-
         <div class="read-only-notice">
-          <i class="fa-solid fa-lock"></i> Financial records are read-only for members.
+          <i class="fa-solid fa-lock"></i> Financial records are read-only for members. Transparency is maintained.
         </div>
       </div>
     </div>
@@ -496,20 +351,18 @@ function handleAdminLogin(e) {
   renderAdminDashboard();
 }
 
-// ADMIN DASHBOARD & ADVANCED SETTINGS
+// ADMIN DASHBOARD
 function renderAdminDashboard(view = "home") {
   const container = document.getElementById("view-container");
+  
   let mainContentHtml = "";
 
   if (view === "home") {
-    const allPayments = getDuesPayments();
-    const totalDuesInflow = allPayments.reduce((sum, p) => sum + p.amount, 0);
-
     mainContentHtml = `
       <section class="cards-container">
         <div class="summary-card">
           <h4>Total Group Inflow</h4>
-          <p>₦${totalDuesInflow.toLocaleString()}</p>
+          <p>₦0.00</p>
         </div>
         <div class="summary-card">
           <h4>Total Group Expenses</h4>
@@ -517,105 +370,22 @@ function renderAdminDashboard(view = "home") {
         </div>
         <div class="summary-card">
           <h4>Total Group Dues</h4>
-          <p>₦${totalDuesInflow.toLocaleString()}</p>
+          <p>₦0.00</p>
         </div>
         <div class="summary-card">
           <h4>Total Group Balance</h4>
-          <p>₦${totalDuesInflow.toLocaleString()}</p>
+          <p>₦0.00</p>
         </div>
       </section>
     `;
-  } else if (view === "dues-entry") {
-    const users = getUsers();
-    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
-
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>Record Member Dues Payment</h3>
-        <div class="admin-form-card">
-          <form onsubmit="handleDuesEntry(event)">
-            <label>Select Member</label>
-            <select id="dues-member-phone" required>
-              <option value="">-- Select Member --</option>
-              ${memberOptions}
-            </select>
-
-            <label>Amount (₦)</label>
-            <input type="number" id="dues-amount" min="1" required placeholder="500" />
-
-            <label>Payment Mode</label>
-            <select id="dues-mode" onchange="toggleBackdateFields()" required>
-              <option value="current">Current (Clear Oldest Unpaid Month First)</option>
-              <option value="backdate">Backdate Specific Historical Month</option>
-            </select>
-
-            <div id="backdate-fields" class="hidden">
-              <label>Historical Payment Date</label>
-              <input type="date" id="dues-backdate" />
-            </div>
-
-            <button type="submit" class="btn-primary">Record Payment</button>
-          </form>
-        </div>
-      </div>
-    `;
-  } else if (view === "settings") {
-    const rates = getDuesRates();
-    let rateRows = rates.map(r => `
-      <tr>
-        <td>₦${r.rate.toLocaleString()}</td>
-        <td>${r.effectiveFrom}</td>
-        <td>${r.admin}</td>
-      </tr>
-    `).join("");
-
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>Admin Settings & Controls</h3>
-        
-        <div class="settings-grid">
-          <!-- Change Monthly Dues Rate -->
-          <div class="admin-form-card">
-            <h4>Change Monthly Dues Rate</h4>
-            <form onsubmit="handleChangeDuesRate(event)">
-              <label>New Monthly Amount (₦)</label>
-              <input type="number" id="new-dues-rate" min="1" required placeholder="e.g. 1000" />
-
-              <label>Effective Month (YYYY-MM)</label>
-              <input type="month" id="dues-effective-month" required />
-
-              <button type="submit" class="btn-primary">Update Dues Rate</button>
-            </form>
-
-            <h5 style="margin-top:15px; color:var(--gold-primary);">Rate History</h5>
-            <table class="members-table" style="margin-top:6px;">
-              <thead><tr><th>Rate</th><th>Effective</th><th>By</th></tr></thead>
-              <tbody>${rateRows}</tbody>
-            </table>
-          </div>
-
-          <!-- Notification Sound Settings -->
-          <div class="admin-form-card">
-            <h4>Notification Sound Setup</h4>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              ${[1,2,3,4,5,6,7,8,9,10].map(n => `
-                <div class="sound-item">
-                  <span>Sound Option ${n}</span>
-                  <button type="button" onclick="previewSound(${n})" class="btn-sm-preview">Preview</button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  } else if (["all", "men", "women", "youth", "workforce"].includes(view)) {
+  } else if (["all", "men", "women", "youth", "workforce", "leaders"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
     if (view === "men") filteredUsers = users.filter(u => u.group === "men");
     else if (view === "women") filteredUsers = users.filter(u => u.group === "women");
     else if (view === "youth") filteredUsers = users.filter(u => u.group === "youth");
     else if (view === "workforce") filteredUsers = users.filter(u => u.isWorker);
+    else if (view === "leaders") filteredUsers = users.filter(u => u.isLeader);
 
     let rows = filteredUsers.map((u, index) => `
       <tr>
@@ -635,7 +405,7 @@ function renderAdminDashboard(view = "home") {
 
     mainContentHtml = `
       <div class="admin-content-area">
-        <h3>${view.toUpperCase()} Members Management</h3>
+        <h3>${view.toUpperCase()} View</h3>
         <table class="members-table">
           <thead>
             <tr>
@@ -656,38 +426,17 @@ function renderAdminDashboard(view = "home") {
   } else {
     mainContentHtml = `
       <div class="admin-content-area">
-        <h3>${view.toUpperCase()} Management</h3>
-        <p>Management interface for ${view} is active.</p>
+        <h3>${view.toUpperCase()} Settings</h3>
+        <p>Admin configuration options are available here.</p>
       </div>
     `;
   }
 
   container.innerHTML = `
     <div class="admin-wrapper">
-      <aside class="admin-sidebar" id="admin-sidebar">
-        <div class="sidebar-header">OMEGA ADMIN</div>
-        <ul class="sidebar-menu">
-          <li><a onclick="renderAdminDashboard('home')" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
-          <li><a onclick="renderAdminDashboard('dues-entry')" class="${view === 'dues-entry' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> Dues Entry</a></li>
-          <li><a onclick="renderAdminDashboard('all')" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> All Members View</a></li>
-          <li><a onclick="renderAdminDashboard('men')" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men</a></li>
-          <li><a onclick="renderAdminDashboard('women')" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women</a></li>
-          <li><a onclick="renderAdminDashboard('youth')" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth</a></li>
-          <li><a onclick="renderAdminDashboard('workforce')" class="${view === 'workforce' ? 'active' : ''}"><i class="fa-solid fa-briefcase"></i> Workforce</a></li>
-          <li><a onclick="renderAdminDashboard('offering')"><i class="fa-solid fa-hand-holding-dollar"></i> Offering</a></li>
-          <li><a onclick="renderAdminDashboard('tithe')"><i class="fa-solid fa-coins"></i> Tithe</a></li>
-          <li><a onclick="renderAdminDashboard('projects')"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
-          <li><a onclick="renderAdminDashboard('church-expenses')"><i class="fa-solid fa-file-invoice-dollar"></i> Church Expenses</a></li>
-          <li><a onclick="renderAdminDashboard('group-expenses')"><i class="fa-solid fa-receipt"></i> Group Expenses</a></li>
-          <li><a onclick="renderAdminDashboard('settings')" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
-          <li><a onclick="renderAuthSelection()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
-        </ul>
-      </aside>
-
       <main class="admin-main">
         <header class="admin-topbar">
           <div class="topbar-left">
-            <button class="toggle-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
             <h3>Admin Portal</h3>
           </div>
           <div class="topbar-right">
@@ -699,14 +448,36 @@ function renderAdminDashboard(view = "home") {
               <img src="https://via.placeholder.com/36" class="admin-avatar" alt="Admin" />
               <div class="admin-info">
                 <span>Main Admin</span>
-                <span class="admin-phone">+234 800 000 0000</span>
               </div>
             </div>
+            <!-- TOP RIGHT SIDEBAR TOGGLE BUTTON -->
+            <button class="toggle-btn-topright" onclick="toggleSidebar()">
+              <i class="fa-solid fa-bars"></i> Menu
+            </button>
           </div>
         </header>
 
         ${mainContentHtml}
       </main>
+
+      <!-- SIDEBAR FROM TOP RIGHT -->
+      <aside class="admin-sidebar" id="admin-sidebar">
+        <div class="sidebar-header">
+          <span>NAVIGATION</span>
+          <button class="close-sidebar-btn" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <ul class="sidebar-menu">
+          <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+          <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="${view === 'workforce' ? 'active' : ''}"><i class="fa-solid fa-briefcase"></i> Workforce</a></li>
+          <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View All Members</a></li>
+          <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Group Leaders</a></li>
+          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
+          <li><a onclick="renderAuthSelection()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+      </aside>
     </div>
   `;
 }
@@ -714,70 +485,6 @@ function renderAdminDashboard(view = "home") {
 function toggleSidebar() {
   const sidebar = document.getElementById("admin-sidebar");
   sidebar.classList.toggle("open");
-}
-
-function toggleBackdateFields() {
-  const mode = document.getElementById("dues-mode").value;
-  const backdateFields = document.getElementById("backdate-fields");
-  if (mode === "backdate") {
-    backdateFields.classList.remove("hidden");
-  } else {
-    backdateFields.classList.add("hidden");
-  }
-}
-
-function handleDuesEntry(e) {
-  e.preventDefault();
-  const phone = document.getElementById("dues-member-phone").value;
-  const amount = parseFloat(document.getElementById("dues-amount").value);
-  const mode = document.getElementById("dues-mode").value;
-  const dateStr = mode === "backdate" ? document.getElementById("dues-backdate").value : new Date().toISOString().split('T')[0];
-
-  if (!phone || isNaN(amount) || amount <= 0) {
-    alert("Please fill in valid payment details!");
-    return;
-  }
-
-  const payments = getDuesPayments();
-  payments.push({
-    id: "TXN-" + Date.now(),
-    memberPhone: phone,
-    amount: amount,
-    mode: mode,
-    paymentDate: dateStr,
-    recordedBy: "Main Admin"
-  });
-
-  saveDuesPayments(payments);
-  alert(`Payment of ₦${amount.toLocaleString()} recorded successfully!`);
-  renderAdminDashboard("dues-entry");
-}
-
-function handleChangeDuesRate(e) {
-  e.preventDefault();
-  const rate = parseFloat(document.getElementById("new-dues-rate").value);
-  const monthStr = document.getElementById("dues-effective-month").value;
-
-  if (isNaN(rate) || rate <= 0 || !monthStr) {
-    alert("Invalid rate or effective month!");
-    return;
-  }
-
-  const rates = getDuesRates();
-  rates.push({
-    effectiveFrom: monthStr,
-    rate: rate,
-    admin: "Main Admin",
-    dateSet: new Date().toISOString()
-  });
-
-  saveDuesRates(rates);
-  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}! Existing arrears preserved.`);
-  renderAdminDashboard("settings");
-}
-
-function previewSound(num) {
-  alert(`Playing preview audio sample ${num}`);
 }
 
 function editMember(phone) {
