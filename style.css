@@ -271,20 +271,6 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
-.btn-leader-badge {
-  background: var(--gold-primary);
-  color: #000;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-weight: bold;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .download-link {
   display: flex;
   align-items: center;
@@ -300,7 +286,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ADMIN & MEMBER SIDEBAR LAYOUT */
-.admin-wrapper, .member-dashboard-wrapper, .leader-dashboard-wrapper {
+.admin-wrapper, .member-dashboard-wrapper {
   display: flex;
   flex-direction: column;
   width: 100vw;
@@ -308,7 +294,7 @@ input:focus, select:focus, textarea:focus {
   position: relative;
 }
 
-.admin-main, .leader-main {
+.admin-main {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -316,7 +302,7 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
 }
 
-.admin-topbar, .member-topbar, .leader-topbar {
+.admin-topbar, .member-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -336,13 +322,12 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.95rem;
 }
 
-.topbar-right, .member-topbar-right, .leader-topbar-right {
+.topbar-right, .member-topbar-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-/* Compact Toggle Button on Top-Left */
 .toggle-btn-topleft {
   background: none;
   border: 1px solid var(--gold-primary);
@@ -356,8 +341,8 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
 }
 
-/* Sidebars Positioned from Left */
-.admin-sidebar, .member-sidebar, .leader-sidebar {
+/* Sidebars */
+.admin-sidebar, .member-sidebar {
   position: fixed;
   top: 0;
   left: 0;
@@ -373,7 +358,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 4px 0 15px rgba(0,0,0,0.5);
 }
 
-.admin-sidebar.open, .member-sidebar.open, .leader-sidebar.open {
+.admin-sidebar.open, .member-sidebar.open {
   transform: translateX(0);
 }
 
@@ -458,13 +443,19 @@ input:focus, select:focus, textarea:focus {
   object-fit: cover;
 }
 
-/* STRICT 2-COLUMN SIDE-BY-SIDE GRID (2 CARDS PER ROW) */
-.cards-container, .member-card-grid, .grid-2col {
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  padding: 20px;
+}
+
+/* STRICT 2-COLUMN GRID (2 SIDE-BY-SIDE) */
+.member-card-grid, .two-col-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-bottom: 20px;
-  padding: 15px;
 }
 
 .summary-card, .m-card, .leader-card {
@@ -472,7 +463,7 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 14px;
-  text-align: center;
+  text-align: left;
 }
 
 .summary-card h4, .m-card h4, .leader-card h4 {
@@ -483,14 +474,40 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0.5px;
 }
 
-.summary-card p, .m-card p, .leader-card p {
+.summary-card p, .m-card p {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--gold-primary);
 }
 
-.admin-content-area, .member-content, .leader-content {
-  padding: 15px;
+.leader-card h3 {
+  color: var(--gold-primary);
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 4px;
+}
+
+.leader-info-item {
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+  color: var(--text-color);
+}
+
+.exco-list {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--card-border);
+}
+
+.exco-item {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.admin-content-area, .member-content {
+  padding: 20px;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
@@ -499,7 +516,7 @@ input:focus, select:focus, textarea:focus {
 .settings-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  padding: 16px;
+  padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
 }
@@ -519,13 +536,12 @@ input:focus, select:focus, textarea:focus {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--card-border);
-  margin-top: 10px;
 }
 
 .members-table th, .members-table td {
-  padding: 10px;
+  padding: 12px;
   text-align: left;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   border-bottom: 1px solid var(--card-border);
 }
 
@@ -544,6 +560,21 @@ input:focus, select:focus, textarea:focus {
 .badge.paid { background: rgba(56, 176, 0, 0.15); color: var(--success); border: 1px solid var(--success); }
 .badge.partial { background: rgba(212, 175, 55, 0.15); color: var(--gold-primary); border: 1px solid var(--gold-primary); }
 .badge.unpaid { background: rgba(230, 57, 70, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+
+.btn-group-leader-badge {
+  background: var(--gold-primary);
+  color: #000;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 0 10px var(--gold-glow);
+}
 
 .btn-action-group {
   display: flex;
@@ -571,22 +602,55 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.75rem;
 }
 
-.exco-list {
-  margin-top: 8px;
+.sound-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: var(--bg-color);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.welcome-banner {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.welcome-banner h2 {
+  font-size: 1.1rem;
+  color: var(--gold-primary);
+  margin-bottom: 6px;
+}
+
+.slogan-text {
   font-size: 0.75rem;
   color: var(--text-muted);
-  text-align: left;
+  font-style: italic;
 }
 
-.exco-item {
-  background: var(--bg-color);
-  padding: 6px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  border: 1px solid var(--card-border);
+.workforce-badge {
+  color: var(--success);
+  font-size: 0.8rem;
 }
 
-/* Modal Popup Styles */
+.read-only-notice {
+  background: rgba(212, 175, 55, 0.05);
+  border: 1px dashed var(--gold-primary);
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--gold-primary);
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* Modal Styling */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -594,7 +658,7 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999;
+  z-index: 2000;
   padding: 15px;
 }
 
@@ -602,29 +666,22 @@ input:focus, select:focus, textarea:focus {
   background: var(--card-bg);
   border: 1px solid var(--gold-primary);
   border-radius: 10px;
+  width: 100%;
+  max-width: 420px;
   padding: 20px;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 0 20px var(--gold-glow);
+  position: relative;
 }
 
-.modal-content h3 {
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 10px;
+}
+
+.modal-header h3 {
   color: var(--gold-primary);
-  margin-bottom: 10px;
-  font-size: 1.1rem;
-}
-
-.modal-content p {
-  font-size: 0.85rem;
-  color: var(--text-color);
-  margin-bottom: 12px;
-}
-
-.modal-img {
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
-  border-radius: 6px;
-  margin-bottom: 12px;
-  border: 1px solid var(--card-border);
+  font-size: 1rem;
 }
