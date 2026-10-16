@@ -512,6 +512,17 @@ input:focus, select:focus, textarea:focus {
   color: var(--gold-primary);
 }
 
+.badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.badge.paid { background: rgba(56, 176, 0, 0.15); color: var(--success); border: 1px solid var(--success); }
+.badge.partial { background: rgba(212, 175, 55, 0.15); color: var(--gold-primary); border: 1px solid var(--gold-primary); }
+.badge.unpaid { background: rgba(230, 57, 70, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+
 .btn-action-group {
   display: flex;
   gap: 6px;
