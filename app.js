@@ -1,5 +1,10 @@
-document.addEventListener("DOMContentLoaded", () => {
-  initDuesConfig();
+// SUPABASE CLIENT INITIALIZATION
+const SUPABASE_URL = "https://yfyskcjmylezzuloknx.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_-UoN9IlACEQ6eajXFw2-cA_kgQA9kXY";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await initDuesConfig();
 
   // 1. 6-Second Loading Screen Timer
   setTimeout(() => {
@@ -17,45 +22,153 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 6000);
 });
 
-// Database Helper Functions
-function getUsers() {
-  return JSON.parse(localStorage.getItem("omega_users")) || [];
+// Database Helper Functions (Supabase Cloud Async Operations)
+async function getUsers() {
+  const { data, error } = await supabaseClient.from("users").select("*");
+  if (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+  // Map snake_case columns back to camelCase app properties
+  return data.map(u => ({
+    phone: u.phone,
+    fullName: u.full_name,
+    whatsapp: u.whatsapp,
+    email: u.email,
+    dob: u.dob,
+    origin: u.origin,
+    residence: u.residence,
+    address: u.address,
+    isMarried: u.is_married,
+    gender: u.gender,
+    group: u.group,
+    isWorker: u.is_worker,
+    department: u.department,
+    profilePic: u.profile_pic,
+    pin: u.pin,
+    role: u.role,
+    isGroupLeader: u.is_group_leader,
+    leaderPin: u.leader_pin,
+    excoRole: u.exco_role
+  }));
 }
 
-function saveUsers(users) {
-  localStorage.setItem("omega_users", JSON.stringify(users));
+async function saveUserToSupabase(userObj) {
+  const payload = {
+    phone: userObj.phone,
+    full_name: userObj.fullName,
+    whatsapp: userObj.whatsapp,
+    email: userObj.email,
+    dob: userObj.dob,
+    origin: userObj.origin,
+    residence: userObj.residence,
+    address: userObj.address,
+    is_married: userObj.isMarried,
+    gender: userObj.gender,
+    "group": userObj.group,
+    is_worker: userObj.isWorker,
+    department: userObj.department,
+    profile_pic: userObj.profilePic,
+    pin: userObj.pin,
+    role: userObj.role || 'member',
+    is_group_leader: userObj.isGroupLeader || false,
+    leader_pin: userObj.leaderPin || null,
+    exco_role: userObj.excoRole || null
+  };
+
+  const { error } = await supabaseClient.from("users").upsert(payload);
+  if (error) console.error("Error saving user:", error);
 }
 
-function getFinancialRecords(key) {
-  return JSON.parse(localStorage.getItem(key)) || [];
+async function getFinancialRecords(tableKey) {
+  const { data, error } = await supabaseClient.from(tableKey).select("*");
+  if (error) {
+    console.error(`Error fetching ${tableKey}:`, error);
+    return [];
+  }
+  if (tableKey === "dues_payments") {
+    return data.map(p => ({
+      id: p.id,
+      memberPhone: p.member_phone,
+      amount: p.amount,
+      mode: p.mode,
+      paymentDate: p.payment_date,
+      recordedBy: p.recorded_by
+    }));
+  }
+  if (tableKey === "projects") {
+    return data.map(p => ({
+      id: p.id,
+      memberPhone: p.member_phone,
+      memberName: p.member_name,
+      projectName: p.project_name,
+      amount: p.amount,
+      date: p.date
+    }));
+  }
+  return data;
 }
 
-function saveFinancialRecords(key, data) {
-  localStorage.setItem(key, JSON.stringify(data));
+async function saveFinancialRecord(tableKey, recordObj) {
+  let payload = recordObj;
+  if (tableKey === "dues_payments") {
+    payload = {
+      id: recordObj.id,
+      member_phone: recordObj.memberPhone,
+      amount: recordObj.amount,
+      mode: recordObj.mode,
+      payment_date: recordObj.paymentDate,
+      recorded_by: recordObj.recordedBy
+    };
+  } else if (tableKey === "projects") {
+    payload = {
+      member_phone: recordObj.memberPhone,
+      member_name: recordObj.memberName,
+      project_name: recordObj.projectName,
+      amount: recordObj.amount,
+      date: recordObj.date
+    };
+  }
+  const { error } = await supabaseClient.from(tableKey).insert([payload]);
+  if (error) console.error(`Error saving ${tableKey}:`, error);
 }
 
-function getDuesRates() {
-  return JSON.parse(localStorage.getItem("omega_dues_rates")) || [
-    { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
-  ];
+async function getDuesRates() {
+  const { data, error } = await supabaseClient.from("dues_rates").select("*");
+  if (error || !data || data.length === 0) {
+    return [{ effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }];
+  }
+  return data.map(r => ({
+    effectiveFrom: r.effective_from,
+    rate: r.rate,
+    admin: r.admin,
+    dateSet: r.date_set
+  }));
 }
 
-function saveDuesRates(rates) {
-  localStorage.setItem("omega_dues_rates", JSON.stringify(rates));
+async function saveDuesRateToSupabase(rateObj) {
+  const payload = {
+    effective_from: rateObj.effectiveFrom,
+    rate: rateObj.rate,
+    admin: rateObj.admin,
+    date_set: rateObj.dateSet
+  };
+  const { error } = await supabaseClient.from("dues_rates").insert([payload]);
+  if (error) console.error("Error saving dues rate:", error);
 }
 
-function initDuesConfig() {
-  if (!localStorage.getItem("omega_dues_rates")) {
-    saveDuesRates([
-      { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
-    ]);
+async function initDuesConfig() {
+  const rates = await getDuesRates();
+  if (rates.length === 0) {
+    await saveDuesRateToSupabase({ effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() });
   }
 }
 
 // Financial Ledger Engine Functions
-function getRateForMonth(year, monthIndex) {
+async function getRateForMonth(year, monthIndex) {
   const monthStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-  const rates = getDuesRates().sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+  const rates = await getDuesRates();
+  rates.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
   
   let currentRate = rates[0].rate;
   for (let r of rates) {
@@ -68,8 +181,8 @@ function getRateForMonth(year, monthIndex) {
   return currentRate;
 }
 
-function calculateMemberDues(phone) {
-  const payments = getFinancialRecords("omega_dues_payments").filter(p => p.memberPhone === phone);
+async function calculateMemberDues(phone) {
+  const payments = (await getFinancialRecords("dues_payments")).filter(p => p.memberPhone === phone);
   let totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
 
   const now = new Date();
@@ -82,7 +195,7 @@ function calculateMemberDues(phone) {
   for (let y = startYear; y <= currentYear; y++) {
     let endMonth = (y === currentYear) ? currentMonth : 11;
     for (let m = 0; m <= endMonth; m++) {
-      let required = getRateForMonth(y, m);
+      let required = await getRateForMonth(y, m);
       let monthName = new Date(y, m, 1).toLocaleString('default', { month: 'short' });
       monthLedger.push({
         year: y,
@@ -127,8 +240,8 @@ function calculateMemberDues(phone) {
   };
 }
 
-function calculateMemberProjects(phone) {
-  const projects = getFinancialRecords("omega_projects").filter(p => p.memberPhone === phone);
+async function calculateMemberProjects(phone) {
+  const projects = (await getFinancialRecords("projects")).filter(p => p.memberPhone === phone);
   return {
     total: projects.reduce((sum, p) => sum + Number(p.amount), 0),
     list: projects
@@ -179,12 +292,12 @@ function renderLogin() {
   `;
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
   const phone = document.getElementById("login-phone").value.trim();
   const pin = document.getElementById("login-pin").value.trim();
 
-  const users = getUsers();
+  const users = await getUsers();
   const user = users.find(u => u.phone === phone && u.pin === pin);
 
   if (!user) {
@@ -197,15 +310,16 @@ function handleLogin(e) {
 }
 
 // MEMBER DASHBOARD ROUTING
-function routeUserDashboard(user, view = 'home') {
+async function routeUserDashboard(user, view = 'home') {
   const container = document.getElementById("view-container");
   let groupTitle = `${user.group.toUpperCase()} FELLOWSHIP`;
 
-  const financials = calculateMemberDues(user.phone);
-  const projectsData = calculateMemberProjects(user.phone);
-  const currentMonthRate = getRateForMonth(new Date().getFullYear(), new Date().getMonth());
+  const financials = await calculateMemberDues(user.phone);
+  const projectsData = await calculateMemberProjects(user.phone);
+  const currentMonthRate = await getRateForMonth(new Date().getFullYear(), new Date().getMonth());
 
-  const userNotifications = getFinancialRecords(`omega_notifications_${user.group}`);
+  const allNotifications = await getFinancialRecords("notifications");
+  const userNotifications = allNotifications.filter(n => n.group === user.group);
 
   let mainBodyContent = "";
 
@@ -357,7 +471,7 @@ function routeUserDashboard(user, view = 'home') {
         </div>
         <div class="member-topbar-right">
           ${isLeader ? `<button class="btn-group-leader-badge" onclick="promptLeaderPin('${user.phone}')"><i class="fa-solid fa-user-shield"></i> Group Leader</button>` : ''}
-          <div class="notification-bell" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications')">
+          <div class="notification-bell" onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'notifications')">
             <i class="fa-solid fa-bell"></i>
             <span class="bell-badge">${userNotifications.length}</span>
           </div>
@@ -378,11 +492,11 @@ function routeUserDashboard(user, view = 'home') {
           <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
+          <li><a onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+          <li><a onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
+          <li><a onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
+          <li><a onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</a></li>
+          <li><a onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
           <li><a onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
       </aside>
@@ -390,8 +504,9 @@ function routeUserDashboard(user, view = 'home') {
   `;
 }
 
-function promptLeaderPin(phone) {
-  const leader = getUsers().find(u => u.phone === phone);
+async function promptLeaderPin(phone) {
+  const users = await getUsers();
+  const leader = users.find(u => u.phone === phone);
   const pinEntered = prompt("Enter your 7-Digit Group Leader PIN:");
   if (pinEntered === leader.leaderPin) {
     renderGroupLeaderDashboard(leader, 'members');
@@ -401,9 +516,9 @@ function promptLeaderPin(phone) {
 }
 
 // GROUP LEADER DASHBOARD
-function renderGroupLeaderDashboard(leader, view = 'members') {
+async function renderGroupLeaderDashboard(leader, view = 'members') {
   const container = document.getElementById("view-container");
-  const users = getUsers().filter(u => u.group === leader.group);
+  const users = (await getUsers()).filter(u => u.group === leader.group);
 
   let leaderContentHtml = "";
 
@@ -439,7 +554,6 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
     `;
   } else if (view === 'choose-excos') {
     const existingExcos = users.filter(u => u.excoRole);
-
     let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('');
 
     leaderContentHtml = `
@@ -488,6 +602,7 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
       </div>
     `;
   } else if (view === 'dues-records') {
+    let tableHtml = await generateLeaderDuesTable(users, leader.group);
     leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
         <h3>Member Dues Lookup</h3>
@@ -498,12 +613,12 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
         </div>
 
         <div id="leader-dues-results">
-          ${generateLeaderDuesTable(users, leader.group)}
+          ${tableHtml}
         </div>
       </div>
     `;
   } else if (view === 'projects') {
-    const projects = getFinancialRecords("omega_projects");
+    const projects = await getFinancialRecords("projects");
     const groupProjects = projects.filter(p => users.some(u => u.phone === p.memberPhone));
 
     leaderContentHtml = `
@@ -556,23 +671,22 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
   } else if (view === 'money-info') {
     const handoverMoney = Number(localStorage.getItem(`omega_handover_${leader.group}`)) || 0;
 
-    const duesPayments = getFinancialRecords("omega_dues_payments").filter(p => users.some(u => u.phone === p.memberPhone));
+    const duesPayments = (await getFinancialRecords("dues_payments")).filter(p => users.some(u => u.phone === p.memberPhone));
     const totalDues = duesPayments.reduce((s, p) => s + Number(p.amount), 0);
 
-    const projects = getFinancialRecords("omega_projects").filter(p => users.some(u => u.phone === p.memberPhone));
+    const projects = (await getFinancialRecords("projects")).filter(p => users.some(u => u.phone === p.memberPhone));
     const paidProjectLevy = projects.reduce((s, p) => s + Number(p.amount), 0);
 
-    const groupExpenses = getFinancialRecords("omega_group_expenses").filter(e => e.group === leader.group);
+    const groupExpenses = (await getFinancialRecords("group_expenses")).filter(e => e.group === leader.group);
     const totalExpenses = groupExpenses.reduce((s, e) => s + Number(e.amount), 0);
 
-    // Formula: Handover Money + Total Dues + Paid Project Levy - Total Expenses = Total Balance
     const totalBalance = handoverMoney + totalDues + paidProjectLevy - totalExpenses;
 
     let totalArrears = 0;
-    users.forEach(u => {
-      let calc = calculateMemberDues(u.phone);
+    for (let u of users) {
+      let calc = await calculateMemberDues(u.phone);
       totalArrears += calc.amountOwing;
-    });
+    }
 
     leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
@@ -627,7 +741,7 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
             <h3>${leader.group.toUpperCase()} LEADER PORTAL</h3>
           </div>
           <div class="topbar-right">
-            <button onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')" class="btn-logout"><i class="fa-solid fa-xmark"></i></button>
+            <button onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'home')" class="btn-logout"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </header>
 
@@ -642,13 +756,13 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
           <button class="close-sidebar-btn" onclick="toggleLeaderSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'members'); toggleLeaderSidebar();" class="${view === 'members' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View Members Details</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'choose-excos'); toggleLeaderSidebar();" class="${view === 'choose-excos' ? 'active' : ''}"><i class="fa-solid fa-user-plus"></i> Choose Excos (Max 6)</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'dues-records'); toggleLeaderSidebar();" class="${view === 'dues-records' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> View Members Dues Record</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'projects'); toggleLeaderSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy History</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'notifications'); toggleLeaderSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bullhorn"></i> Group Notification Broadcast</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'money-info'); toggleLeaderSidebar();" class="${view === 'money-info' ? 'active' : ''}"><i class="fa-solid fa-sack-dollar"></i> Money Info</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')"><i class="fa-solid fa-arrow-left"></i> Exit Leader Portal</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'members'); toggleLeaderSidebar();" class="${view === 'members' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View Members Details</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'choose-excos'); toggleLeaderSidebar();" class="${view === 'choose-excos' ? 'active' : ''}"><i class="fa-solid fa-user-plus"></i> Choose Excos (Max 6)</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'dues-records'); toggleLeaderSidebar();" class="${view === 'dues-records' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> View Members Dues Record</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'projects'); toggleLeaderSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy History</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'notifications'); toggleLeaderSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bullhorn"></i> Group Notification Broadcast</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'money-info'); toggleLeaderSidebar();" class="${view === 'money-info' ? 'active' : ''}"><i class="fa-solid fa-sack-dollar"></i> Money Info</a></li>
+          <li><a onclick="routeUserDashboard(JSON.parse(localStorage.getItem('omega_current_user')), 'home')"><i class="fa-solid fa-arrow-left"></i> Exit Leader Portal</a></li>
         </ul>
       </aside>
     </div>
@@ -660,33 +774,44 @@ function toggleLeaderSidebar() {
   sidebar.classList.toggle("open");
 }
 
-function handleAssignExco(e, leaderPhone) {
+async function handleAssignExco(e, leaderPhone) {
   e.preventDefault();
   const targetPhone = document.getElementById("exco-member-phone").value;
   const roleName = document.getElementById("exco-role-name").value.trim();
 
-  let users = getUsers();
-  let member = users.find(u => u.phone === targetPhone);
-  if (member) {
-    member.excoRole = roleName;
-    saveUsers(users);
-    alert(`${member.fullName} assigned as ${roleName}!`);
+  const { error } = await supabaseClient.from("users").update({ exco_role: roleName }).eq("phone", targetPhone);
+  if (!error) {
+    alert("Exco role assigned successfully!");
+    const users = await getUsers();
     renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'choose-excos');
+  } else {
+    alert("Error assigning exco role.");
   }
 }
 
-function removeExcoRole(phone, leaderPhone) {
-  let users = getUsers();
-  let member = users.find(u => u.phone === phone);
-  if (member) {
-    delete member.excoRole;
-    saveUsers(users);
+async function removeExcoRole(phone, leaderPhone) {
+  const { error } = await supabaseClient.from("users").update({ exco_role: null }).eq("phone", phone);
+  if (!error) {
     alert("Exco role removed.");
+    const users = await getUsers();
     renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'choose-excos');
   }
 }
 
-function generateLeaderDuesTable(usersList, groupKey) {
+async function generateLeaderDuesTable(usersList, groupKey) {
+  let rows = "";
+  for (let u of usersList) {
+    let dues = await calculateMemberDues(u.phone);
+    rows += `
+      <tr>
+        <td>${u.fullName}</td>
+        <td>${u.phone}</td>
+        <td>₦${dues.totalPaid.toLocaleString()}</td>
+        <td style="color:${dues.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${dues.amountOwing.toLocaleString()}</td>
+        <td><button class="btn-sm-edit" onclick="viewMemberLedgerModal('${u.phone}')">View Dues History</button></td>
+      </tr>
+    `;
+  }
   return `
     <table class="members-table">
       <thead>
@@ -698,33 +823,21 @@ function generateLeaderDuesTable(usersList, groupKey) {
           <th>Action</th>
         </tr>
       </thead>
-      <tbody>
-        ${usersList.map(u => {
-          let dues = calculateMemberDues(u.phone);
-          return `
-            <tr>
-              <td>${u.fullName}</td>
-              <td>${u.phone}</td>
-              <td>₦${dues.totalPaid.toLocaleString()}</td>
-              <td style="color:${dues.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${dues.amountOwing.toLocaleString()}</td>
-              <td><button class="btn-sm-edit" onclick="viewMemberLedgerModal('${u.phone}')">View Dues History</button></td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>
   `;
 }
 
-function filterLeaderDuesSearch(groupKey) {
+async function filterLeaderDuesSearch(groupKey) {
   const query = document.getElementById("leader-search-input").value.toLowerCase();
-  const users = getUsers().filter(u => u.group === groupKey && u.fullName.toLowerCase().includes(query));
-  document.getElementById("leader-dues-results").innerHTML = generateLeaderDuesTable(users, groupKey);
+  const users = (await getUsers()).filter(u => u.group === groupKey && u.fullName.toLowerCase().includes(query));
+  document.getElementById("leader-dues-results").innerHTML = await generateLeaderDuesTable(users, groupKey);
 }
 
-function viewMemberLedgerModal(phone) {
-  const user = getUsers().find(u => u.phone === phone);
-  const dues = calculateMemberDues(phone);
+async function viewMemberLedgerModal(phone) {
+  const users = await getUsers();
+  const user = users.find(u => u.phone === phone);
+  const dues = await calculateMemberDues(phone);
 
   let rows = dues.ledger.map(item => `
     <tr>
@@ -756,38 +869,42 @@ function viewMemberLedgerModal(phone) {
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
-function handleSendGroupBroadcast(e, groupKey) {
+async function handleSendGroupBroadcast(e, groupKey) {
   e.preventDefault();
   const title = document.getElementById("notif-title").value.trim();
   const message = document.getElementById("notif-msg").value.trim();
   const fileInput = document.getElementById("notif-img");
 
-  const records = getFinancialRecords(`omega_notifications_${groupKey}`);
-
-  const saveBroadcast = (imgData = "") => {
-    records.unshift({
+  const saveBroadcast = async (imgData = "") => {
+    const { error } = await supabaseClient.from("notifications").insert([{
+      "group": groupKey,
       title,
       message,
       image: imgData,
       date: new Date().toLocaleString()
-    });
-    saveFinancialRecords(`omega_notifications_${groupKey}`, records);
-    alert(`Broadcast notification sent to all ${groupKey.toUpperCase()} members!`);
-    alert(`POPUP NOTIFICATION:\n\n[${title}]\n${message}`);
+    }]);
+
+    if (!error) {
+      alert(`Broadcast notification sent to all ${groupKey.toUpperCase()} members!`);
+      alert(`POPUP NOTIFICATION:\n\n[${title}]\n${message}`);
+    } else {
+      alert("Error sending broadcast.");
+    }
   };
 
   if (fileInput.files[0]) {
     const reader = new FileReader();
-    reader.onload = function(evt) { saveBroadcast(evt.target.result); };
+    reader.onload = async function(evt) { await saveBroadcast(evt.target.result); };
     reader.readAsDataURL(fileInput.files[0]);
   } else {
-    saveBroadcast();
+    await saveBroadcast();
   }
 }
 
-function viewNotificationDetail(index, groupKey) {
-  const records = getFinancialRecords(`omega_notifications_${groupKey}`);
-  const notif = records[index];
+async function viewNotificationDetail(index, groupKey) {
+  const allNotifs = await getFinancialRecords("notifications");
+  const userNotifs = allNotifs.filter(n => n.group === groupKey);
+  const notif = userNotifs[index];
   if (!notif) return;
 
   const modalHtml = `
@@ -851,7 +968,7 @@ function renderRegistrationStep1() {
 
 let tempRegData = {};
 
-function handleRegStep1(e) {
+async function handleRegStep1(e) {
   e.preventDefault();
   tempRegData = {
     fullName: document.getElementById("reg-name").value.trim(),
@@ -864,7 +981,7 @@ function handleRegStep1(e) {
     address: document.getElementById("reg-address").value.trim()
   };
 
-  const users = getUsers();
+  const users = await getUsers();
   if (users.some(u => u.phone === tempRegData.phone)) {
     alert("This phone number is already registered!");
     return;
@@ -1003,7 +1120,7 @@ function renderRegistrationStep3() {
   `;
 }
 
-function handleFinalRegistration(e) {
+async function handleFinalRegistration(e) {
   e.preventDefault();
   const pin = document.getElementById("reg-pin").value;
   const pinConfirm = document.getElementById("reg-pin-confirm").value;
@@ -1016,15 +1133,12 @@ function handleFinalRegistration(e) {
   const fileInput = document.getElementById("reg-pic");
   const reader = new FileReader();
 
-  reader.onload = function(event) {
+  reader.onload = async function(event) {
     tempRegData.profilePic = event.target.result;
     tempRegData.pin = pin;
 
-    const users = getUsers();
-    users.push(tempRegData);
-    saveUsers(users);
-
-    alert("Registration saved successfully! Please log in.");
+    await saveUserToSupabase(tempRegData);
+    alert("Registration saved successfully to Supabase! Please log in.");
     renderLogin();
   };
 
@@ -1033,11 +1147,8 @@ function handleFinalRegistration(e) {
   } else {
     tempRegData.profilePic = "";
     tempRegData.pin = pin;
-    const users = getUsers();
-    users.push(tempRegData);
-    saveUsers(users);
-
-    alert("Registration saved successfully! Please log in.");
+    await saveUserToSupabase(tempRegData);
+    alert("Registration saved successfully to Supabase! Please log in.");
     renderLogin();
   }
 }
@@ -1075,17 +1186,17 @@ function handleAdminLogin(e) {
 }
 
 // ADMIN DASHBOARD
-function renderAdminDashboard(view = "home") {
+async function renderAdminDashboard(view = "home") {
   const container = document.getElementById("view-container");
   
   let mainContentHtml = "";
 
-  const tithes = getFinancialRecords("omega_tithes");
-  const offerings = getFinancialRecords("omega_offerings");
-  const churchExpenses = getFinancialRecords("omega_expenses");
-  const groupExpenses = getFinancialRecords("omega_group_expenses");
-  const duesPayments = getFinancialRecords("omega_dues_payments");
-  const projectContributions = getFinancialRecords("omega_projects");
+  const tithes = await getFinancialRecords("tithes");
+  const offerings = await getFinancialRecords("offerings");
+  const churchExpenses = await getFinancialRecords("church_expenses");
+  const groupExpenses = await getFinancialRecords("group_expenses");
+  const duesPayments = await getFinancialRecords("dues_payments");
+  const projectContributions = await getFinancialRecords("projects");
 
   const totalTithes = tithes.reduce((sum, item) => sum + Number(item.amount), 0);
   const totalOfferings = offerings.reduce((sum, item) => sum + Number(item.amount), 0);
@@ -1121,7 +1232,7 @@ function renderAdminDashboard(view = "home") {
       </section>
     `;
   } else if (view === "leaders") {
-    const users = getUsers();
+    const users = await getUsers();
     const groups = ["men", "women", "youth"];
 
     let leadersGridHtml = groups.map(grpKey => {
@@ -1179,7 +1290,7 @@ function renderAdminDashboard(view = "home") {
       </div>
     `;
   } else if (["all", "men", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
-    const users = getUsers();
+    const users = await getUsers();
     let filteredUsers = users;
 
     if (view === "men") filteredUsers = users.filter(u => u.group === "men");
@@ -1230,7 +1341,7 @@ function renderAdminDashboard(view = "home") {
       </div>
     `;
   } else if (view === "group-expenses") {
-    const records = getFinancialRecords("omega_group_expenses");
+    const records = await getFinancialRecords("group_expenses");
 
     let rows = records.map((r, index) => `
       <tr>
@@ -1286,7 +1397,7 @@ function renderAdminDashboard(view = "home") {
       </div>
     `;
   } else if (view === "dues-entry") {
-    const users = getUsers();
+    const users = await getUsers();
     let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
 
     mainContentHtml = `
@@ -1320,9 +1431,9 @@ function renderAdminDashboard(view = "home") {
       </div>
     `;
   } else if (view === "projects") {
-    const users = getUsers();
+    const users = await getUsers();
     let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
-    const projects = getFinancialRecords("omega_projects");
+    const projects = await getFinancialRecords("projects");
 
     let rows = projects.map((p, index) => `
       <tr>
@@ -1376,7 +1487,7 @@ function renderAdminDashboard(view = "home") {
       </div>
     `;
   } else if (view === "settings") {
-    const users = getUsers();
+    const users = await getUsers();
     let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
 
     mainContentHtml = `
@@ -1420,8 +1531,7 @@ function renderAdminDashboard(view = "home") {
       </div>
     `;
   } else if (["tithe", "offering", "church-expenses"].includes(view)) {
-    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : "omega_expenses";
-    const currentRecords = getFinancialRecords(recordKey);
+    const currentRecords = await getFinancialRecords(view === "tithe" ? "tithes" : view === "offering" ? "offerings" : "church_expenses");
 
     let rows = currentRecords.map((r, index) => `
       <tr>
@@ -1435,7 +1545,7 @@ function renderAdminDashboard(view = "home") {
     mainContentHtml = `
       <div class="admin-content-area">
         <h3>Record New ${view.toUpperCase()}</h3>
-        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
+        <form onsubmit="addFinancialEntry(event, '${view === "tithe" ? "tithes" : view === "offering" ? "offerings" : "church_expenses"}', '${view}')" style="margin-bottom: 20px;">
           <input type="text" id="fin-title" placeholder="Description / Member Name" required />
           <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
           <input type="date" id="fin-date" required />
@@ -1523,9 +1633,9 @@ function renderAdminDashboard(view = "home") {
   `;
 }
 
-function filterMembersBySelectedGroup(groupKey) {
+async function filterMembersBySelectedGroup(groupKey) {
   const memberSelect = document.getElementById("leader-member-select");
-  const users = getUsers().filter(u => u.group === groupKey);
+  const users = (await getUsers()).filter(u => u.group === groupKey);
 
   if (users.length === 0) {
     memberSelect.innerHTML = `<option value="">No members found in ${groupKey.toUpperCase()} fellowship</option>`;
@@ -1535,7 +1645,7 @@ function filterMembersBySelectedGroup(groupKey) {
   }
 }
 
-function handleAppointGroupLeader(e) {
+async function handleAppointGroupLeader(e) {
   e.preventDefault();
   const groupKey = document.getElementById("leader-group-select").value;
   const phone = document.getElementById("leader-member-select").value;
@@ -1546,35 +1656,39 @@ function handleAppointGroupLeader(e) {
     return;
   }
 
-  let users = getUsers();
+  const users = await getUsers();
+  // Reset leaders in same group
+  for (let u of users) {
+    if (u.group === groupKey && u.isGroupLeader) {
+      await supabaseClient.from("users").update({ is_group_leader: false, leader_pin: null }).eq("phone", u.phone);
+    }
+  }
 
-  users.forEach(u => {
-    if (u.group === groupKey) u.isGroupLeader = false;
-  });
+  const { error } = await supabaseClient.from("users").update({
+    is_group_leader: true,
+    leader_pin: pin
+  }).eq("phone", phone);
 
-  let leader = users.find(u => u.phone === phone);
-  if (leader) {
-    leader.isGroupLeader = true;
-    leader.leaderPin = pin;
-    saveUsers(users);
-    alert(`${leader.fullName} appointed as ${groupKey.toUpperCase()} Group Leader with 7-Digit PIN set!`);
+  if (!error) {
+    alert(`Group Leader appointed successfully with 7-digit PIN!`);
     renderAdminDashboard("leaders");
+  } else {
+    alert("Error appointing leader.");
   }
 }
 
-function handleGroupExpenseEntry(e) {
+async function handleGroupExpenseEntry(e) {
   e.preventDefault();
   const group = document.getElementById("grp-exp-group").value;
   const title = document.getElementById("grp-exp-title").value.trim();
   const amount = parseFloat(document.getElementById("grp-exp-amount").value);
   const date = document.getElementById("grp-exp-date").value;
 
-  const records = getFinancialRecords("omega_group_expenses");
-  records.push({ group, title, amount, date });
-
-  saveFinancialRecords("omega_group_expenses", records);
-  alert("Group expense recorded successfully!");
-  renderAdminDashboard("group-expenses");
+  const { error } = await supabaseClient.from("group_expenses").insert([{ "group": group, title, amount, date }]);
+  if (!error) {
+    alert("Group expense recorded successfully!");
+    renderAdminDashboard("group-expenses");
+  }
 }
 
 function toggleBackdateFields() {
@@ -1587,7 +1701,7 @@ function toggleBackdateFields() {
   }
 }
 
-function handleDuesEntry(e) {
+async function handleDuesEntry(e) {
   e.preventDefault();
   const phone = document.getElementById("dues-member-phone").value;
   const amount = parseFloat(document.getElementById("dues-amount").value);
@@ -1599,8 +1713,7 @@ function handleDuesEntry(e) {
     return;
   }
 
-  const payments = getFinancialRecords("omega_dues_payments");
-  payments.push({
+  await saveFinancialRecord("dues_payments", {
     id: "TXN-" + Date.now(),
     memberPhone: phone,
     amount: amount,
@@ -1609,23 +1722,21 @@ function handleDuesEntry(e) {
     recordedBy: "Main Admin"
   });
 
-  saveFinancialRecords("omega_dues_payments", payments);
   alert(`Dues payment of ₦${amount.toLocaleString()} recorded successfully!`);
   renderAdminDashboard("dues-entry");
 }
 
-function handleProjectEntry(e) {
+async function handleProjectEntry(e) {
   e.preventDefault();
   const phone = document.getElementById("proj-member-phone").value;
   const projectName = document.getElementById("proj-title").value.trim();
   const amount = parseFloat(document.getElementById("proj-amount").value);
   const date = document.getElementById("proj-date").value;
 
-  const users = getUsers();
+  const users = await getUsers();
   const user = users.find(u => u.phone === phone);
 
-  const projects = getFinancialRecords("omega_projects");
-  projects.push({
+  await saveFinancialRecord("projects", {
     memberPhone: phone,
     memberName: user ? user.fullName : "Unknown",
     projectName,
@@ -1633,12 +1744,11 @@ function handleProjectEntry(e) {
     date
   });
 
-  saveFinancialRecords("omega_projects", projects);
   alert("Project contribution recorded successfully!");
   renderAdminDashboard("projects");
 }
 
-function handleChangeDuesRate(e) {
+async function handleChangeDuesRate(e) {
   e.preventDefault();
   const rate = parseFloat(document.getElementById("new-dues-rate").value);
   const monthStr = document.getElementById("dues-effective-month").value;
@@ -1648,31 +1758,28 @@ function handleChangeDuesRate(e) {
     return;
   }
 
-  const rates = getDuesRates();
-  rates.push({
+  await saveDuesRateToSupabase({
     effectiveFrom: monthStr,
     rate: rate,
     admin: "Main Admin",
     dateSet: new Date().toISOString()
   });
 
-  saveDuesRates(rates);
   alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}!`);
   renderAdminDashboard("settings");
 }
 
-function addFinancialEntry(e, key, viewType) {
+async function addFinancialEntry(e, tableKey, viewType) {
   e.preventDefault();
   const title = document.getElementById("fin-title").value.trim();
   const amount = document.getElementById("fin-amount").value.trim();
   const date = document.getElementById("fin-date").value;
 
-  const records = getFinancialRecords(key);
-  records.push({ title, amount, date });
-  saveFinancialRecords(key, records);
-
-  alert(`${viewType.toUpperCase()} record added successfully!`);
-  renderAdminDashboard(viewType);
+  const { error } = await supabaseClient.from(tableKey).insert([{ title, amount, date }]);
+  if (!error) {
+    alert(`${viewType.toUpperCase()} record added successfully!`);
+    renderAdminDashboard(viewType);
+  }
 }
 
 function changeTheme(theme) {
@@ -1694,16 +1801,13 @@ function previewAudioSound(id) {
   osc.stop(ctx.currentTime + 0.3);
 }
 
-function handleResetPin(e) {
+async function handleResetPin(e) {
   e.preventDefault();
   const phone = document.getElementById("reset-user-phone").value;
   const newPin = document.getElementById("reset-new-pin").value.trim();
 
-  let users = getUsers();
-  let user = users.find(u => u.phone === phone);
-  if (user) {
-    user.pin = newPin;
-    saveUsers(users);
+  const { error } = await supabaseClient.from("users").update({ pin: newPin }).eq("phone", phone);
+  if (!error) {
     alert("PIN reset successfully!");
     renderAdminDashboard("settings");
   }
@@ -1714,8 +1818,8 @@ function toggleSidebar() {
   sidebar.classList.toggle("open");
 }
 
-function editMember(phone) {
-  let users = getUsers();
+async function editMember(phone) {
+  const users = await getUsers();
   let user = users.find(u => u.phone === phone);
   if (!user) return;
 
@@ -1725,20 +1829,23 @@ function editMember(phone) {
   const newPhone = prompt("Edit Phone Number:", user.phone);
   if (newPhone === null) return;
 
-  user.fullName = newName.trim();
-  user.phone = newPhone.trim();
+  const { error } = await supabaseClient.from("users").update({
+    full_name: newName.trim(),
+    phone: newPhone.trim()
+  }).eq("phone", phone);
 
-  saveUsers(users);
-  alert("Member details updated successfully!");
-  renderAdminDashboard('all');
+  if (!error) {
+    alert("Member details updated successfully!");
+    renderAdminDashboard('all');
+  }
 }
 
-function deleteMember(phone) {
+async function deleteMember(phone) {
   if (confirm("Are you sure you want to delete this member?")) {
-    let users = getUsers();
-    users = users.filter(u => u.phone !== phone);
-    saveUsers(users);
-    alert("Member deleted successfully.");
-    renderAdminDashboard('all');
+    const { error } = await supabaseClient.from("users").delete().eq("phone", phone);
+    if (!error) {
+      alert("Member deleted successfully.");
+      renderAdminDashboard('all');
+    }
   }
 }
