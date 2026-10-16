@@ -393,7 +393,12 @@ function renderAdminDashboard(view = "home") {
         <td>${u.phone}</td>
         <td>${u.group.toUpperCase()}</td>
         <td>${u.isWorker ? 'Yes' : 'No'}</td>
-        <td><button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button></td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
       </tr>
     `).join("");
 
@@ -477,6 +482,25 @@ function renderAdminDashboard(view = "home") {
 function toggleSidebar() {
   const sidebar = document.getElementById("admin-sidebar");
   sidebar.classList.toggle("open");
+}
+
+function editMember(phone) {
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (!user) return;
+
+  const newName = prompt("Edit Full Name:", user.fullName);
+  if (newName === null) return;
+
+  const newPhone = prompt("Edit Phone Number:", user.phone);
+  if (newPhone === null) return;
+
+  user.fullName = newName.trim();
+  user.phone = newPhone.trim();
+
+  saveUsers(users);
+  alert("Member details updated successfully!");
+  renderAdminDashboard('all');
 }
 
 function deleteMember(phone) {
