@@ -379,7 +379,7 @@ function renderRegistrationStep2() {
         <!-- Department Popup Dropdown if Worker is Yes -->
         <div id="dept-popup-container" class="hidden">
           <label>Workforce Department</label>
-          <select id="reg-dept">
+          <select id="reg-dept" onchange="handleDeptSelectPopup(this.value)">
             <option value="">-- Select Department --</option>
             <option value="Sanitation">Sanitation</option>
             <option value="Technical">Technical</option>
@@ -394,6 +394,12 @@ function renderRegistrationStep2() {
       </form>
     </div>
   `;
+}
+
+function handleDeptSelectPopup(deptVal) {
+  if (deptVal) {
+    alert(`You have selected the "${deptVal}" Department! You will be registered under this workforce division upon completion.`);
+  }
 }
 
 function toggleGenderPopup() {
