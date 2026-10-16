@@ -428,3 +428,129 @@ input:focus, select:focus {
     transform: translateX(0);
   }
 }
+/* Member Dashboard Styles */
+.member-dashboard-wrapper {
+  width: 100vw;
+  min-height: 100vh;
+  background: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.member-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.member-profile-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.member-avatar-img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-primary);
+  object-fit: cover;
+}
+
+.member-profile-section h4 {
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.member-id-tag, .member-phone-tag {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.member-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.btn-logout {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.member-content {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-banner {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.welcome-banner h2 {
+  font-size: 1.2rem;
+  color: var(--gold-primary);
+  margin-bottom: 6px;
+}
+
+.slogan-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.workforce-badge {
+  color: #38b000;
+  font-size: 0.85rem;
+}
+
+.member-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.m-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+}
+
+.m-card h4 {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.m-card p {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold-primary);
+}
+
+.read-only-notice {
+  background: rgba(212, 175, 55, 0.05);
+  border: 1px dashed var(--gold-primary);
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--gold-primary);
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
