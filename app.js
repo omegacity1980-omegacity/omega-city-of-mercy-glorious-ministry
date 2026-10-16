@@ -29,7 +29,6 @@ async function getUsers() {
     console.error("Error fetching users:", error);
     return [];
   }
-  // Map snake_case columns back to camelCase app properties
   return data.map(u => ({
     phone: u.phone,
     fullName: u.full_name,
@@ -57,18 +56,18 @@ async function saveUserToSupabase(userObj) {
   const payload = {
     phone: userObj.phone,
     full_name: userObj.fullName,
-    whatsapp: userObj.whatsapp,
-    email: userObj.email,
-    dob: userObj.dob,
-    origin: userObj.origin,
-    residence: userObj.residence,
-    address: userObj.address,
+    whatsapp: userObj.whatsapp || "",
+    email: userObj.email || "",
+    dob: userObj.dob || "",
+    origin: userObj.origin || "",
+    residence: userObj.residence || "",
+    address: userObj.address || "",
     is_married: userObj.isMarried,
-    gender: userObj.gender,
+    gender: userObj.gender || "",
     "group": userObj.group,
     is_worker: userObj.isWorker,
-    department: userObj.department,
-    profile_pic: userObj.profilePic,
+    department: userObj.department || "",
+    profile_pic: userObj.profilePic || "",
     pin: userObj.pin,
     role: userObj.role || 'member',
     is_group_leader: userObj.isGroupLeader || false,
@@ -76,8 +75,13 @@ async function saveUserToSupabase(userObj) {
     exco_role: userObj.excoRole || null
   };
 
-  const { error } = await supabaseClient.from("users").upsert(payload);
-  if (error) console.error("Error saving user:", error);
+  const { data, error } = await supabaseClient.from("users").upsert(payload).select();
+  if (error) {
+    console.error("Supabase Save Error:", error);
+    alert("Registration DB Error: " + error.message);
+  } else {
+    console.log("Saved successfully:", data);
+  }
 }
 
 async function getFinancialRecords(tableKey) {
@@ -298,10 +302,12 @@ async function handleLogin(e) {
   const pin = document.getElementById("login-pin").value.trim();
 
   const users = await getUsers();
+  console.log("Fetched users from Supabase:", users);
+  
   const user = users.find(u => u.phone === phone && u.pin === pin);
 
   if (!user) {
-    alert("Invalid phone number or 4-digit PIN!");
+    alert(`Login failed for phone: ${phone}. Check console or verify account exists in Supabase users table.`);
     return;
   }
 
@@ -1657,7 +1663,6 @@ async function handleAppointGroupLeader(e) {
   }
 
   const users = await getUsers();
-  // Reset leaders in same group
   for (let u of users) {
     if (u.group === groupKey && u.isGroupLeader) {
       await supabaseClient.from("users").update({ is_group_leader: false, leader_pin: null }).eq("phone", u.phone);
