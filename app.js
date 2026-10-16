@@ -52,7 +52,7 @@ function initDuesConfig() {
   }
 }
 
-// Financial Ledger Engine Functions (Starting Jan 2026 - Oldest Unpaid First)
+// Financial Ledger Engine Functions
 function getRateForMonth(year, monthIndex) {
   const monthStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
   const rates = getDuesRates().sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
@@ -87,7 +87,7 @@ function calculateMemberDues(phone) {
       monthLedger.push({
         year: y,
         month: m,
-        label: `${monthName}${y}`,
+        label: `${monthName} ${y}`,
         required: required,
         paid: 0,
         status: 'unpaid'
@@ -232,7 +232,7 @@ function routeUserDashboard(user) {
 
       <div class="member-content">
         <div class="welcome-banner">
-          <h2>${groupTitle}${user.isWorker ? '<span class="workforce-badge">| Workforce</span>' : ''}</h2>
+          <h2>${groupTitle} ${user.isWorker ? `<span class="workforce-badge">| ${user.department ? user.department.toUpperCase() : 'Workforce'}</span>` : ''}</h2>
           <p class="slogan-text">Omega City Of Mercy - Keeping financial records transparent.</p>
         </div>
 
@@ -293,7 +293,7 @@ function logout() {
   renderAuthSelection();
 }
 
-// REGISTRATION FUNNEL - STEP 1
+// MEMBER REGISTRATION FUNNEL - STEP 1
 function renderRegistrationStep1() {
   const container = document.getElementById("view-container");
   container.innerHTML = `
@@ -304,11 +304,15 @@ function renderRegistrationStep1() {
         <input type="tel" id="reg-phone" placeholder="Phone Number" required />
         <input type="tel" id="reg-whatsapp" placeholder="WhatsApp Number" required />
         <input type="email" id="reg-email" placeholder="Email Address" required />
+        
+        <label>Date of Birth</label>
+        <input type="date" id="reg-dob" required />
+
         <input type="text" id="reg-origin" placeholder="State of Origin" required />
         <input type="text" id="reg-residence" placeholder="State of Residence" required />
-        <input type="text" id="reg-address" placeholder="House Address" required />
-        <input type="text" id="reg-nationality" placeholder="Nationality" required />
-        <button type="submit" class="btn-primary">Proceed</button>
+        <input type="text" id="reg-address" placeholder="Residence Address" required />
+
+        <button type="submit" class="btn-primary">Continue</button>
         <button type="button" onclick="renderAuthSelection()" class="btn-text">Cancel</button>
       </form>
     </div>
@@ -324,10 +328,10 @@ function handleRegStep1(e) {
     phone: document.getElementById("reg-phone").value.trim(),
     whatsapp: document.getElementById("reg-whatsapp").value.trim(),
     email: document.getElementById("reg-email").value.trim(),
+    dob: document.getElementById("reg-dob").value,
     origin: document.getElementById("reg-origin").value.trim(),
     residence: document.getElementById("reg-residence").value.trim(),
-    address: document.getElementById("reg-address").value.trim(),
-    nationality: document.getElementById("reg-nationality").value.trim()
+    address: document.getElementById("reg-address").value.trim()
   };
 
   const users = getUsers();
@@ -339,79 +343,822 @@ function handleRegStep1(e) {
   renderRegistrationStep2();
 }
 
-// REGISTRATION FUNNEL - STEP 2
+// MEMBER REGISTRATION FUNNEL - STEP 2
 function renderRegistrationStep2() {
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
-      <h2>Group Assignment (2/3)</h2>
+      <h2>Member Assignment (2/3)</h2>
       <form id="reg-step2" onsubmit="handleRegStep2(event)">
-        <label>Marital Status</label>
-        <select id="reg-marital" onchange="toggleGenderDropdown()" required>
-          <option value="">-- Select Status --</option>
-          <option value="single">Single</option>
-          <option value="married">Married</option>
+        <!-- 1) Marital Status Dropdown -->
+        <label>Are you married?</label>
+        <select id="reg-married" onchange="toggleGenderPopup()" required>
+          <option value="">-- Select Option --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
         </select>
 
-        <div id="gender-container" class="hidden">
-          <label>Gender</label>
+        <!-- Gender Popup Dropdown if Married is Yes -->
+        <div id="gender-popup-container" class="hidden">
+          <label>Gender (Fellowship Allocation)</label>
           <select id="reg-gender">
             <option value="">-- Select Gender --</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+            <option value="male">Male (Men Fellowship)</option>
+            <option value="female">Female (Women Fellowship)</option>
           </select>
         </div>
 
+        <!-- 2) Worker Status Dropdown -->
         <label>Are you a worker?</label>
-        <select id="reg-worker" required>
-          <option value="no">No</option>
+        <select id="reg-worker" onchange="toggleDeptPopup()" required>
+          <option value="">-- Select Option --</option>
           <option value="yes">Yes</option>
+          <option value="no">No</option>
         </select>
 
-        <button type="submit" class="btn-primary">Next</button>
+        <!-- Department Popup Dropdown if Worker is Yes -->
+        <div id="dept-popup-container" class="hidden">
+          <label>Workforce Department</label>
+          <select id="reg-dept">
+            <option value="">-- Select Department --</option>
+            <option value="Sanitation">Sanitation</option>
+            <option value="Technical">Technical</option>
+            <option value="Security">Security</option>
+            <option value="Choir">Choir</option>
+            <option value="Usher">Usher</option>
+            <option value="Children class">Children class</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-primary">Continue</button>
       </form>
     </div>
   `;
 }
 
-function toggleGenderDropdown() {
-  const marital = document.getElementById("reg-marital").value;
-  const genderContainer = document.getElementById("gender-container");
-  if (marital === "married") {
+function toggleGenderPopup() {
+  const isMarried = document.getElementById("reg-married").value;
+  const genderContainer = document.getElementById("gender-popup-container");
+  if (isMarried === "yes") {
     genderContainer.classList.remove("hidden");
   } else {
     genderContainer.classList.add("hidden");
   }
 }
 
+function toggleDeptPopup() {
+  const isWorker = document.getElementById("reg-worker").value;
+  const deptContainer = document.getElementById("dept-popup-container");
+  if (isWorker === "yes") {
+    deptContainer.classList.remove("hidden");
+  } else {
+    deptContainer.classList.add("hidden");
+  }
+}
+
 function handleRegStep2(e) {
   e.preventDefault();
-  const marital = document.getElementById("reg-marital").value;
+  const isMarried = document.getElementById("reg-married").value;
   const gender = document.getElementById("reg-gender").value;
-  const workerChoice = document.getElementById("reg-worker").value;
+  const isWorker = document.getElementById("reg-worker").value;
+  const department = document.getElementById("reg-dept").value;
 
   let assignedGroup = "youth";
-  if (marital === "single") {
+  if (isMarried === "no") {
     assignedGroup = "youth";
-  } else if (marital === "married") {
+  } else if (isMarried === "yes") {
     if (gender === "male") assignedGroup = "men";
     else if (gender === "female") assignedGroup = "women";
+    else {
+      alert("Please select gender to proceed!");
+      return;
+    }
   }
 
-  tempRegData.marital = marital;
+  if (isWorker === "yes" && !department) {
+    alert("Please select workforce department!");
+    return;
+  }
+
+  tempRegData.isMarried = isMarried === "yes";
   tempRegData.gender = gender;
   tempRegData.group = assignedGroup;
-  tempRegData.isWorker = workerChoice === "yes";
+  tempRegData.isWorker = isWorker === "yes";
+  tempRegData.department = isWorker === "yes" ? department : "";
 
   renderRegistrationStep3();
 }
 
-// REGISTRATION FUNNEL - STEP 3
+// MEMBER REGISTRATION FUNNEL - STEP 3
 function renderRegistrationStep3() {
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
-      <h2>Security & Profile (3/3)</h2>
+      <h2>Security & Photo (3/3)</h2>
       <form id="reg-step3" onsubmit="handleFinalRegistration(event)">
+        <label>Enter 4-Digit Login PIN</label>
+        <input type="password" id="reg-pin" maxlength="4" required placeholder="****" />
+
+        <label>Confirm Login PIN</label>
+        <input type="password" id="reg-pin-confirm" maxlength="4" required placeholder="****" />
+
         <label>Upload Profile Picture</label>
-        <input type="file" id="
+        <input type="file" id="reg-pic" accept="image/*" required />
+
+        <button type="submit" class="btn-primary">SAVE</button>
+      </form>
+    </div>
+  `;
+}
+
+function handleFinalRegistration(e) {
+  e.preventDefault();
+  const pin = document.getElementById("reg-pin").value;
+  const pinConfirm = document.getElementById("reg-pin-confirm").value;
+
+  if (pin !== pinConfirm) {
+    alert("PINs do not match! Please re-enter.");
+    return;
+  }
+
+  const fileInput = document.getElementById("reg-pic");
+  const reader = new FileReader();
+
+  reader.onload = function(event) {
+    tempRegData.profilePic = event.target.result;
+    tempRegData.pin = pin;
+
+    const users = getUsers();
+    users.push(tempRegData);
+    saveUsers(users);
+
+    alert("Registration saved successfully! Please log in.");
+    renderLogin();
+  };
+
+  if (fileInput.files[0]) {
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    tempRegData.profilePic = "";
+    tempRegData.pin = pin;
+    const users = getUsers();
+    users.push(tempRegData);
+    saveUsers(users);
+
+    alert("Registration saved successfully! Please log in.");
+    renderLogin();
+  }
+}
+
+// MAIN ADMIN LOGIN
+function renderAdminLogin() {
+  const container = document.getElementById("view-container");
+  container.innerHTML = `
+    <div class="auth-box">
+      <h2>Main Admin Login</h2>
+      <form id="admin-login-form" onsubmit="handleAdminLogin(event)">
+        <div class="input-group">
+          <label>Admin Phone Number</label>
+          <input type="tel" id="admin-phone" required placeholder="Enter phone number" />
+        </div>
+        <div class="input-group">
+          <label>8-Digit PIN</label>
+          <input type="password" id="admin-pin" maxlength="8" required placeholder="********" />
+        </div>
+        <button type="submit" class="btn-primary">Access Admin Portal</button>
+        
+        <a href="data:text/html;charset=utf-8,${encodeURIComponent('<h1>OMEGA CITY OF MERCY - MAIN ADMIN PORTAL</h1><p>Separate Downloadable Login</p>')}" download="Main_Admin_Portal.html" class="download-link">
+          <i class="fa-solid fa-download"></i> Download Separate Admin Login
+        </a>
+
+        <button type="button" onclick="renderAuthSelection()" class="btn-text">Back to Home</button>
+      </form>
+    </div>
+  `;
+}
+
+function handleAdminLogin(e) {
+  e.preventDefault();
+  renderAdminDashboard();
+}
+
+// ADMIN DASHBOARD
+function renderAdminDashboard(view = "home") {
+  const container = document.getElementById("view-container");
+  
+  let mainContentHtml = "";
+
+  const tithes = getFinancialRecords("omega_tithes");
+  const offerings = getFinancialRecords("omega_offerings");
+  const churchExpenses = getFinancialRecords("omega_expenses");
+  const groupExpenses = getFinancialRecords("omega_group_expenses");
+  const duesPayments = getFinancialRecords("omega_dues_payments");
+  const projectContributions = getFinancialRecords("omega_projects");
+
+  const totalTithes = tithes.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalOfferings = offerings.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalDues = duesPayments.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalProjects = projectContributions.reduce((sum, item) => sum + Number(item.amount), 0);
+  
+  const totalChurchExpenses = churchExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalGroupExpenses = groupExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
+
+  const totalInflow = totalTithes + totalOfferings + totalDues + totalProjects;
+  const totalExpenses = totalChurchExpenses + totalGroupExpenses;
+  const balance = totalInflow - totalExpenses;
+
+  if (view === "home") {
+    mainContentHtml = `
+      <section class="cards-container">
+        <div class="summary-card">
+          <h4>Total Group Inflow</h4>
+          <p>₦${totalInflow.toLocaleString()}</p>
+        </div>
+        <div class="summary-card">
+          <h4>Total Group Expenses</h4>
+          <p>₦${totalExpenses.toLocaleString()}</p>
+        </div>
+        <div class="summary-card">
+          <h4>Total Dues Collected</h4>
+          <p>₦${totalDues.toLocaleString()}</p>
+        </div>
+        <div class="summary-card">
+          <h4>Total Group Balance</h4>
+          <p>₦${balance.toLocaleString()}</p>
+        </div>
+      </section>
+    `;
+  } else if (["all", "men", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children", "leaders"].includes(view)) {
+    const users = getUsers();
+    let filteredUsers = users;
+
+    if (view === "men") filteredUsers = users.filter(u => u.group === "men");
+    else if (view === "women") filteredUsers = users.filter(u => u.group === "women");
+    else if (view === "youth") filteredUsers = users.filter(u => u.group === "youth");
+    else if (view === "workforce") filteredUsers = users.filter(u => u.isWorker);
+    else if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department === "Sanitation");
+    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department === "Technical");
+    else if (view === "dept-security") filteredUsers = users.filter(u => u.department === "Security");
+    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department === "Choir");
+    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department === "Usher");
+    else if (view === "dept-children") filteredUsers = users.filter(u => u.department === "Children class");
+    else if (view === "leaders") filteredUsers = users.filter(u => u.role === "leader" || u.role === "exco");
+
+    let rows = filteredUsers.map((u, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${u.fullName}</td>
+        <td>${u.phone}</td>
+        <td>${u.group.toUpperCase()}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>${view.toUpperCase().replace('DEPT-', 'DEPARTMENT: ')} View</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Group</th>
+              <th>Department / Worker</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "group-expenses") {
+    const records = getFinancialRecords("omega_group_expenses");
+
+    let rows = records.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.group.toUpperCase()}</td>
+        <td>${r.title}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group Expense</h3>
+        <div class="settings-card">
+          <form onsubmit="handleGroupExpenseEntry(event)">
+            <label>Select Fellowship / Group</label>
+            <select id="grp-exp-group" required>
+              <option value="men">Men Fellowship</option>
+              <option value="women">Women Fellowship</option>
+              <option value="youth">Youth Fellowship</option>
+              <option value="workforce">Workforce</option>
+            </select>
+
+            <label>Expense Description</label>
+            <input type="text" id="grp-exp-title" placeholder="e.g. Welfare / Event Setup" required />
+
+            <label>Amount (₦)</label>
+            <input type="number" id="grp-exp-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="grp-exp-date" required />
+
+            <button type="submit" class="btn-primary">Record Group Expense</button>
+          </form>
+        </div>
+
+        <h3>Group Expense History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Group</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No group expenses recorded.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "dues-entry") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Member Dues Payment</h3>
+        <div class="settings-card">
+          <form onsubmit="handleDuesEntry(event)">
+            <label>Select Member</label>
+            <select id="dues-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Amount Paid (₦)</label>
+            <input type="number" id="dues-amount" min="1" required placeholder="e.g. 1000" />
+
+            <label>Payment Mode</label>
+            <select id="dues-mode" onchange="toggleBackdateFields()" required>
+              <option value="current">Current (Clear Oldest Arrears First)</option>
+              <option value="backdate">Backdate Specific Month</option>
+            </select>
+
+            <div id="backdate-fields" class="hidden">
+              <label>Historical Month Date</label>
+              <input type="date" id="dues-backdate" />
+            </div>
+
+            <button type="submit" class="btn-primary">Record Dues Payment</button>
+          </form>
+        </div>
+      </div>
+    `;
+  } else if (view === "projects") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+    const projects = getFinancialRecords("omega_projects");
+
+    let rows = projects.map((p, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${p.date}</td>
+        <td>${p.memberName}</td>
+        <td>${p.projectName}</td>
+        <td>₦${Number(p.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group / Building Project Contribution</h3>
+        <div class="settings-card">
+          <form onsubmit="handleProjectEntry(event)">
+            <label>Select Member</label>
+            <select id="proj-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Project / Levy Title</label>
+            <input type="text" id="proj-title" placeholder="e.g. Building Project / Men Annual Levy" required />
+
+            <label>Contribution Amount (₦)</label>
+            <input type="number" id="proj-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="proj-date" required />
+
+            <button type="submit" class="btn-primary">Record Contribution</button>
+          </form>
+        </div>
+
+        <h3>Project Contribution History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Member</th>
+              <th>Project</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No project records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "settings") {
+    const users = getUsers();
+    let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Settings & Administrative Controls</h3>
+
+        <!-- Change Monthly Dues Rate -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-coins"></i> Configure Monthly Dues Rate</h4>
+          <form onsubmit="handleChangeDuesRate(event)">
+            <label>New Monthly Amount (₦)</label>
+            <input type="number" id="new-dues-rate" min="1" required placeholder="e.g. 1000" />
+
+            <label>Effective Month (YYYY-MM)</label>
+            <input type="month" id="dues-effective-month" required />
+
+            <button type="submit" class="btn-primary">Update Dues Rate</button>
+          </form>
+        </div>
+
+        <!-- Change Theme -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-palette"></i> Change Theme</h4>
+          <select onchange="changeTheme(this.value)">
+            <option value="dark">Professional Dark Gold (Default)</option>
+            <option value="light">Professional Light</option>
+          </select>
+        </div>
+
+        <!-- Notification Sound Preview -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-volume-high"></i> Notification Sounds</h4>
+          ${[1,2,3,4,5,6,7,8,9,10].map(i => `
+            <div class="sound-item">
+              <span>Notification Sound ${i}</span>
+              <button class="btn-sm-edit" onclick="previewAudioSound(${i})"><i class="fa-solid fa-play"></i> Preview</button>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- PIN Resets -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-key"></i> Reset Member / Leader / Exco PIN</h4>
+          <form onsubmit="handleResetPin(event)">
+            <label>Select User</label>
+            <select id="reset-user-phone" required>
+              <option value="">-- Select User --</option>
+              ${userOptions}
+            </select>
+            <label>New PIN</label>
+            <input type="password" id="reset-new-pin" placeholder="Enter new PIN" required />
+            <button type="submit" class="btn-primary">Update PIN</button>
+          </form>
+        </div>
+
+        <!-- Assign Posts and Roles -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-user-shield"></i> Assign Post & Roles</h4>
+          <form onsubmit="handleAssignRole(event)">
+            <label>Select Member</label>
+            <select id="role-user-phone" required>
+              <option value="">-- Select Member --</option>
+              ${userOptions}
+            </select>
+            <label>Assign Role</label>
+            <select id="assigned-role" required>
+              <option value="leader">Group Leader</option>
+              <option value="exco">Executive (Exco)</option>
+              <option value="member">Regular Member</option>
+            </select>
+            <button type="submit" class="btn-primary">Save Role</button>
+          </form>
+        </div>
+      </div>
+    `;
+  } else if (["tithe", "offering", "church-expenses"].includes(view)) {
+    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : "omega_expenses";
+    const currentRecords = getFinancialRecords(recordKey);
+
+    let rows = currentRecords.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.title || r.member || 'General'}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record New ${view.toUpperCase()}</h3>
+        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
+          <input type="text" id="fin-title" placeholder="Description / Member Name" required />
+          <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
+          <input type="date" id="fin-date" required />
+          <button type="submit" class="btn-primary">Add ${view.toUpperCase()}</button>
+        </form>
+
+        <h3>${view.toUpperCase()} Records History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Description / Member</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="admin-wrapper">
+      <main class="admin-main">
+        <header class="admin-topbar">
+          <div class="topbar-left">
+            <button class="toggle-btn-topleft" onclick="toggleSidebar()">
+              <i class="fa-solid fa-bars"></i> Menu
+            </button>
+            <h3>Admin Portal</h3>
+          </div>
+          <div class="topbar-right">
+            <div class="notification-bell">
+              <i class="fa-solid fa-bell"></i>
+              <span class="bell-badge">3</span>
+            </div>
+            <div class="admin-profile">
+              <img src="https://via.placeholder.com/36" class="admin-avatar" alt="Admin" />
+              <div class="admin-info">
+                <span>Main Admin</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        ${mainContentHtml}
+      </main>
+
+      <aside class="admin-sidebar" id="admin-sidebar">
+        <div class="sidebar-header">
+          <span>NAVIGATION</span>
+          <button class="close-sidebar-btn" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <ul class="sidebar-menu">
+          <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+          <li><a onclick="renderAdminDashboard('dues-entry'); toggleSidebar();" class="${view === 'dues-entry' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> Dues Entry</a></li>
+          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
+          <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
+          
+          <!-- Workforce & Departments -->
+          <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="${view === 'workforce' ? 'active' : ''}"><i class="fa-solid fa-briefcase"></i> Workforce (All)</a></li>
+          <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}"><i class="fa-solid fa-broom"></i> Sanitation</a></li>
+          <li><a onclick="renderAdminDashboard('dept-technical'); toggleSidebar();" class="sub-menu-item ${view === 'dept-technical' ? 'active' : ''}"><i class="fa-solid fa-gears"></i> Technical</a></li>
+          <li><a onclick="renderAdminDashboard('dept-security'); toggleSidebar();" class="sub-menu-item ${view === 'dept-security' ? 'active' : ''}"><i class="fa-solid fa-shield-halved"></i> Security</a></li>
+          <li><a onclick="renderAdminDashboard('dept-choir'); toggleSidebar();" class="sub-menu-item ${view === 'dept-choir' ? 'active' : ''}"><i class="fa-solid fa-music"></i> Choir</a></li>
+          <li><a onclick="renderAdminDashboard('dept-usher'); toggleSidebar();" class="sub-menu-item ${view === 'dept-usher' ? 'active' : ''}"><i class="fa-solid fa-user-check"></i> Usher</a></li>
+          <li><a onclick="renderAdminDashboard('dept-children'); toggleSidebar();" class="sub-menu-item ${view === 'dept-children' ? 'active' : ''}"><i class="fa-solid fa-children"></i> Children class</a></li>
+
+          <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="${view === 'tithe' ? 'active' : ''}"><i class="fa-solid fa-coins"></i> Tithe</a></li>
+          <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="${view === 'offering' ? 'active' : ''}"><i class="fa-solid fa-hand-holding-dollar"></i> Offering</a></li>
+          <li><a onclick="renderAdminDashboard('church-expenses'); toggleSidebar();" class="${view === 'church-expenses' ? 'active' : ''}"><i class="fa-solid fa-file-invoice-dollar"></i> Church Expenses</a></li>
+          <li><a onclick="renderAdminDashboard('group-expenses'); toggleSidebar();" class="${view === 'group-expenses' ? 'active' : ''}"><i class="fa-solid fa-receipt"></i> Group Expenses</a></li>
+          <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View All Members</a></li>
+          <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Group Leaders</a></li>
+          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
+          <li><a onclick="renderAuthSelection()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+      </aside>
+    </div>
+  `;
+}
+
+function handleGroupExpenseEntry(e) {
+  e.preventDefault();
+  const group = document.getElementById("grp-exp-group").value;
+  const title = document.getElementById("grp-exp-title").value.trim();
+  const amount = parseFloat(document.getElementById("grp-exp-amount").value);
+  const date = document.getElementById("grp-exp-date").value;
+
+  const records = getFinancialRecords("omega_group_expenses");
+  records.push({ group, title, amount, date });
+
+  saveFinancialRecords("omega_group_expenses", records);
+  alert("Group expense recorded successfully!");
+  renderAdminDashboard("group-expenses");
+}
+
+function toggleBackdateFields() {
+  const mode = document.getElementById("dues-mode").value;
+  const backdateFields = document.getElementById("backdate-fields");
+  if (mode === "backdate") {
+    backdateFields.classList.remove("hidden");
+  } else {
+    backdateFields.classList.add("hidden");
+  }
+}
+
+function handleDuesEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("dues-member-phone").value;
+  const amount = parseFloat(document.getElementById("dues-amount").value);
+  const mode = document.getElementById("dues-mode").value;
+  const dateStr = mode === "backdate" ? document.getElementById("dues-backdate").value : new Date().toISOString().split('T')[0];
+
+  if (!phone || isNaN(amount) || amount <= 0) {
+    alert("Please fill in valid payment details!");
+    return;
+  }
+
+  const payments = getFinancialRecords("omega_dues_payments");
+  payments.push({
+    id: "TXN-" + Date.now(),
+    memberPhone: phone,
+    amount: amount,
+    mode: mode,
+    paymentDate: dateStr,
+    recordedBy: "Main Admin"
+  });
+
+  saveFinancialRecords("omega_dues_payments", payments);
+  alert(`Dues payment of ₦${amount.toLocaleString()} recorded successfully!`);
+  renderAdminDashboard("dues-entry");
+}
+
+function handleProjectEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("proj-member-phone").value;
+  const projectName = document.getElementById("proj-title").value.trim();
+  const amount = parseFloat(document.getElementById("proj-amount").value);
+  const date = document.getElementById("proj-date").value;
+
+  const users = getUsers();
+  const user = users.find(u => u.phone === phone);
+
+  const projects = getFinancialRecords("omega_projects");
+  projects.push({
+    memberPhone: phone,
+    memberName: user ? user.fullName : "Unknown",
+    projectName,
+    amount,
+    date
+  });
+
+  saveFinancialRecords("omega_projects", projects);
+  alert("Project contribution recorded successfully!");
+  renderAdminDashboard("projects");
+}
+
+function handleChangeDuesRate(e) {
+  e.preventDefault();
+  const rate = parseFloat(document.getElementById("new-dues-rate").value);
+  const monthStr = document.getElementById("dues-effective-month").value;
+
+  if (isNaN(rate) || rate <= 0 || !monthStr) {
+    alert("Invalid rate or effective month!");
+    return;
+  }
+
+  const rates = getDuesRates();
+  rates.push({
+    effectiveFrom: monthStr,
+    rate: rate,
+    admin: "Main Admin",
+    dateSet: new Date().toISOString()
+  });
+
+  saveDuesRates(rates);
+  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}! Arrears preserved.`);
+  renderAdminDashboard("settings");
+}
+
+function addFinancialEntry(e, key, viewType) {
+  e.preventDefault();
+  const title = document.getElementById("fin-title").value.trim();
+  const amount = document.getElementById("fin-amount").value.trim();
+  const date = document.getElementById("fin-date").value;
+
+  const records = getFinancialRecords(key);
+  records.push({ title, amount, date });
+  saveFinancialRecords(key, records);
+
+  alert(`${viewType.toUpperCase()} record added successfully!`);
+  renderAdminDashboard(viewType);
+}
+
+function changeTheme(theme) {
+  const body = document.getElementById("app-body");
+  if (theme === "light") {
+    body.className = "theme-light";
+  } else {
+    body.className = "theme-dark";
+  }
+}
+
+function previewAudioSound(id) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440 + id * 50, ctx.currentTime);
+  osc.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.3);
+}
+
+function handleResetPin(e) {
+  e.preventDefault();
+  const phone = document.getElementById("reset-user-phone").value;
+  const newPin = document.getElementById("reset-new-pin").value.trim();
+
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (user) {
+    user.pin = newPin;
+    saveUsers(users);
+    alert("PIN reset successfully!");
+    renderAdminDashboard("settings");
+  }
+}
+
+function handleAssignRole(e) {
+  e.preventDefault();
+  const phone = document.getElementById("role-user-phone").value;
+  const role = document.getElementById("assigned-role").value;
+
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (user) {
+    user.role = role;
+    saveUsers(users);
+    alert(`Role updated to ${role.toUpperCase()} successfully!`);
+    renderAdminDashboard("settings");
+  }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("admin-sidebar");
+  sidebar.classList.toggle("open");
+}
+
+function editMember(phone) {
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (!user) return;
+
+  const newName = prompt("Edit Full Name:", user.fullName);
+  if (newName === null) return;
+
+  const newPhone = prompt("Edit Phone Number:", user.phone);
+  if (newPhone === null) return;
+
+  user.fullName = newName.trim();
+  user.phone = newPhone.trim();
+
+  saveUsers(users);
+  alert("Member details updated successfully!");
+  renderAdminDashboard('all');
+}
+
+function deleteMember(phone) {
+  if (confirm("Are you sure you want to delete this member?")) {
+    let users = getUsers();
+    users = users.filter(u => u.phone !== phone);
+    saveUsers(users);
+    alert("Member deleted successfully.");
+    renderAdminDashboard('all');
+  }
+}
