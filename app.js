@@ -378,7 +378,7 @@ function renderAdminDashboard(view = "home") {
         </div>
       </section>
     `;
-  } else if (["all", "men", "women", "youth", "workforce", "leaders"].includes(view)) {
+  } else if (["all", "men", "women", "youth", "workforce", "tithe", "offering", "church-expenses", "leaders"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
     if (view === "men") filteredUsers = users.filter(u => u.group === "men");
@@ -418,7 +418,7 @@ function renderAdminDashboard(view = "home") {
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="6" style="text-align:center;">No members found.</td></tr>'}
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -472,6 +472,9 @@ function renderAdminDashboard(view = "home") {
           <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="${view === 'workforce' ? 'active' : ''}"><i class="fa-solid fa-briefcase"></i> Workforce</a></li>
+          <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="${view === 'tithe' ? 'active' : ''}"><i class="fa-solid fa-coins"></i> Tithe</a></li>
+          <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="${view === 'offering' ? 'active' : ''}"><i class="fa-solid fa-hand-holding-dollar"></i> Offering</a></li>
+          <li><a onclick="renderAdminDashboard('church-expenses'); toggleSidebar();" class="${view === 'church-expenses' ? 'active' : ''}"><i class="fa-solid fa-file-invoice-dollar"></i> Church Expenses</a></li>
           <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View All Members</a></li>
           <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Group Leaders</a></li>
           <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
