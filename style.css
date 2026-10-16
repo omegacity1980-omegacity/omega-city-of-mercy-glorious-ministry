@@ -9,6 +9,7 @@
   --gold-glow: rgba(212, 175, 55, 0.3);
   --gold-hover: #b89528;
   --danger: #e63946;
+  --success: #38b000;
 }
 
 * {
@@ -266,7 +267,6 @@ input:focus, select:focus {
   position: relative;
 }
 
-/* Compact Sidebar */
 .admin-sidebar {
   width: 220px;
   background: #141414;
@@ -289,6 +289,7 @@ input:focus, select:focus {
   list-style: none;
   padding: 10px 0;
   flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar-menu li a {
@@ -300,6 +301,7 @@ input:focus, select:focus {
   text-decoration: none;
   font-size: 0.85rem;
   transition: 0.2s;
+  cursor: pointer;
 }
 
 .sidebar-menu li a:hover, .sidebar-menu li a.active {
@@ -308,7 +310,6 @@ input:focus, select:focus {
   border-left: 3px solid var(--gold-primary);
 }
 
-/* Main Content Area */
 .admin-main {
   flex: 1;
   display: flex;
@@ -317,7 +318,6 @@ input:focus, select:focus {
   overflow-y: auto;
 }
 
-/* Admin Top Bar */
 .admin-topbar {
   display: flex;
   justify-content: space-between;
@@ -380,7 +380,7 @@ input:focus, select:focus {
 
 .admin-info span {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.8srem;
 }
 
 .admin-info .admin-phone {
@@ -388,7 +388,6 @@ input:focus, select:focus {
   color: var(--text-muted);
 }
 
-/* Non-Clickable Summary Cards */
 .cards-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -401,7 +400,7 @@ input:focus, select:focus {
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 16px;
-  pointer-events: none; /* Makes card non-clickable */
+  pointer-events: none;
 }
 
 .summary-card h4 {
@@ -417,17 +416,48 @@ input:focus, select:focus {
   color: var(--gold-primary);
 }
 
-/* Mobile Responsiveness for Sidebar */
-@media (max-width: 768px) {
-  .admin-sidebar {
-    position: absolute;
-    height: 100%;
-    transform: translateX(-100%);
-  }
-  .admin-sidebar.open {
-    transform: translateX(0);
-  }
+/* Admin Management Content Area */
+.admin-content-area {
+  padding: 20px;
 }
+
+.admin-content-area h3 {
+  color: var(--gold-primary);
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.members-table th, .members-table td {
+  padding: 12px;
+  text-align: left;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.members-table th {
+  background: #141414;
+  color: var(--gold-primary);
+}
+
+.btn-sm-danger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
 /* Member Dashboard Styles */
 .member-dashboard-wrapper {
   width: 100vw;
@@ -509,7 +539,7 @@ input:focus, select:focus {
 }
 
 .workforce-badge {
-  color: #38b000;
+  color: var(--success);
   font-size: 0.85rem;
 }
 
@@ -553,4 +583,15 @@ input:focus, select:focus {
   justify-content: center;
   align-items: center;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .admin-sidebar {
+    position: absolute;
+    height: 100%;
+    transform: translateX(-100%);
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
 }
