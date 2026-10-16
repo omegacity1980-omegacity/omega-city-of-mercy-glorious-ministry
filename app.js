@@ -24,6 +24,14 @@ function saveUsers(users) {
   localStorage.setItem("omega_users", JSON.stringify(users));
 }
 
+function getFinancialRecords(key) {
+  return JSON.parse(localStorage.getItem(key)) || [];
+}
+
+function saveFinancialRecords(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
 // Render Authentication Choice Screen
 function renderAuthSelection() {
   const container = document.getElementById("view-container");
@@ -357,28 +365,74 @@ function renderAdminDashboard(view = "home") {
   
   let mainContentHtml = "";
 
+  // Financial Calculations for Non-Clickable Cards
+  const tithes = getFinancialRecords("omega_tithes");
+  const offerings = getFinancialRecords("omega_offerings");
+  const expenses = getFinancialRecords("omega_expenses");
+
+  const totalTithes = tithes.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalOfferings = offerings.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalExpenses = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalInflow = totalTithes + totalOfferings;
+  const balance = totalInflow - totalExpenses;
+
   if (view === "home") {
     mainContentHtml = `
       <section class="cards-container">
         <div class="summary-card">
           <h4>Total Group Inflow</h4>
-          <p>₦0.00</p>
+          <p>₦${totalInflow.toLocaleString()}</p>
         </div>
         <div class="summary-card">
           <h4>Total Group Expenses</h4>
-          <p>₦0.00</p>
-        </div>
-        <div class="summary-card">
-          <h4>Total Group Dues</h4>
-          <p>₦0.00</p>
+          <p>₦${totalExpenses.toLocaleString()}</p>
         </div>
         <div class="summary-card">
           <h4>Total Group Balance</h4>
-          <p>₦0.00</p>
+          <p>₦${balance.toLocaleString()}</p>
         </div>
       </section>
     `;
-  } else if (["all", "men", "women", "youth", "workforce", "tithe", "offering", "church-expenses", "leaders"].includes(view)) {
+  } else if (["tithe", "offering", "church-expenses"].includes(view)) {
+    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : "omega_expenses";
+    const currentRecords = getFinancialRecords(recordKey);
+
+    let rows = currentRecords.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.title || r.member || 'General'}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record New ${view.toUpperCase()}</h3>
+        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
+          <input type="text" id="fin-title" placeholder="Description / Member Name" required />
+          <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
+          <input type="date" id="fin-date" required />
+          <button type="submit" class="btn-primary">Add ${view.toUpperCase()}</button>
+        </form>
+
+        <h3>${view.toUpperCase()} Records History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Description / Member</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (["all", "men", "women", "youth", "workforce", "leaders"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
     if (view === "men") filteredUsers = users.filter(u => u.group === "men");
@@ -450,7 +504,6 @@ function renderAdminDashboard(view = "home") {
                 <span>Main Admin</span>
               </div>
             </div>
-            <!-- TOP RIGHT SIDEBAR TOGGLE BUTTON -->
             <button class="toggle-btn-topright" onclick="toggleSidebar()">
               <i class="fa-solid fa-bars"></i> Menu
             </button>
@@ -460,7 +513,6 @@ function renderAdminDashboard(view = "home") {
         ${mainContentHtml}
       </main>
 
-      <!-- SIDEBAR FROM TOP RIGHT -->
       <aside class="admin-sidebar" id="admin-sidebar">
         <div class="sidebar-header">
           <span>NAVIGATION</span>
@@ -483,6 +535,20 @@ function renderAdminDashboard(view = "home") {
       </aside>
     </div>
   `;
+}
+
+function addFinancialEntry(e, key, viewType) {
+  e.preventDefault();
+  const title = document.getElementById("fin-title").value.trim();
+  const amount = document.getElementById("fin-amount").value.trim();
+  const date = document.getElementById("fin-date").value;
+
+  const records = getFinancialRecords(key);
+  records.push({ title, amount, date });
+  saveFinancialRecords(key, records);
+
+  alert(`${viewType.toUpperCase()} record added successfully!`);
+  renderAdminDashboard(viewType);
 }
 
 function toggleSidebar() {
