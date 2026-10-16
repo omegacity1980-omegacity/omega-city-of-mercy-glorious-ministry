@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function TransactionForm({ onClose }) {
+function TransactionForm({ onAddTransaction, onClose }) {
   const [type, setType] = useState('income');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -8,8 +8,19 @@ function TransactionForm({ onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Temporary log until database integration
-    console.log({ type, amount, category, description });
+    if (!amount || !category) return;
+
+    // Send new transaction back to App.jsx
+    if (onAddTransaction) {
+      onAddTransaction({
+        type,
+        amount: parseFloat(amount),
+        category,
+        description,
+        date: new Date().toLocaleDateString()
+      });
+    }
+
     if (onClose) onClose();
   };
 
@@ -19,6 +30,7 @@ function TransactionForm({ onClose }) {
         <h2 className="text-lg font-bold text-amber-400">Record Transaction</h2>
         {onClose && (
           <button 
+            type="button"
             onClick={onClose}
             className="text-neutral-400 hover:text-neutral-100 text-sm font-semibold"
           >
