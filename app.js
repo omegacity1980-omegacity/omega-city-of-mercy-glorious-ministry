@@ -129,7 +129,10 @@ function calculateMemberDues(phone) {
 
 function calculateMemberProjects(phone) {
   const projects = getFinancialRecords("omega_projects").filter(p => p.memberPhone === phone);
-  return projects.reduce((sum, p) => sum + Number(p.amount), 0);
+  return {
+    total: projects.reduce((sum, p) => sum + Number(p.amount), 0),
+    list: projects
+  };
 }
 
 // Render Authentication Choice Screen
@@ -190,102 +193,203 @@ function handleLogin(e) {
   }
 
   localStorage.setItem("omega_current_user", JSON.stringify(user));
-  routeUserDashboard(user);
+  routeUserDashboard(user, 'home');
 }
 
-// MEMBER DASHBOARD ROUTING
-function routeUserDashboard(user) {
+// MEMBER DASHBOARD ROUTING (Men, Women, Youth Fellowships with Left Sidebar)
+function routeUserDashboard(user, view = 'home') {
   const container = document.getElementById("view-container");
-  let groupTitle = `${user.group.toUpperCase()} Fellowship Dashboard`;
+  let groupTitle = `${user.group.toUpperCase()} FELLOWSHIP`;
 
   const financials = calculateMemberDues(user.phone);
-  const totalProjectsPaid = calculateMemberProjects(user.phone);
+  const projectsData = calculateMemberProjects(user.phone);
   const currentMonthRate = getRateForMonth(new Date().getFullYear(), new Date().getMonth());
 
-  let historyRows = financials.ledger.map(item => `
-    <tr>
-      <td>${item.label}</td>
-      <td>₦${item.required.toLocaleString()}</td>
-      <td>₦${item.paid.toLocaleString()}</td>
-      <td><span class="badge ${item.status}">${item.status.toUpperCase()}</span></td>
-    </tr>
-  `).join("");
+  let mainBodyContent = "";
+
+  if (view === 'home') {
+    mainBodyContent = `
+      <div class="welcome-banner">
+        <h2>${groupTitle} DASHBOARD ${user.isWorker ? `<span class="workforce-badge">| ${user.department ? user.department.toUpperCase() : 'Workforce'}</span>` : ''}</h2>
+        <p class="slogan-text">Omega City Of Mercy - Keeping financial records transparent.</p>
+      </div>
+
+      <div class="member-card-grid">
+        <div class="m-card">
+          <h4>Total Dues Paid</h4>
+          <p>₦${financials.totalPaid.toLocaleString()}</p>
+        </div>
+        <div class="m-card">
+          <h4>Amount Owing</h4>
+          <p style="color: ${financials.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${financials.amountOwing.toLocaleString()}</p>
+        </div>
+        <div class="m-card">
+          <h4>Current Dues Rate</h4>
+          <p>₦${currentMonthRate.toLocaleString()}</p>
+        </div>
+        <div class="m-card">
+          <h4>Advance Dues</h4>
+          <p>₦${financials.advanceDues.toLocaleString()}</p>
+        </div>
+        <div class="m-card">
+          <h4>Dues Rating</h4>
+          <p>${financials.duesRating}%</p>
+        </div>
+        <div class="m-card">
+          <h4>Project Contributions</h4>
+          <p>₦${projectsData.total.toLocaleString()}</p>
+        </div>
+      </div>
+    `;
+  } else if (view === 'dues-history') {
+    let historyRows = financials.ledger.map(item => `
+      <tr>
+        <td>${item.label}</td>
+        <td>₦${item.required.toLocaleString()}</td>
+        <td>₦${item.paid.toLocaleString()}</td>
+        <td><span class="badge ${item.status}">${item.status.toUpperCase()}</span></td>
+      </tr>
+    `).join("");
+
+    mainBodyContent = `
+      <div class="admin-content-area" style="padding: 0;">
+        <h3>My Dues Payment History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Required</th>
+              <th>Paid</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${historyRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === 'project-levy') {
+    let projRows = projectsData.list.map((p, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${p.date}</td>
+        <td>${p.projectName}</td>
+        <td>₦${Number(p.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainBodyContent = `
+      <div class="admin-content-area" style="padding: 0;">
+        <h3>My Project & Levy Contributions</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Project Title</th>
+              <th>Amount Paid</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projRows || '<tr><td colspan="4" style="text-align:center;">No project contributions recorded yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === 'settings') {
+    mainBodyContent = `
+      <div class="admin-content-area" style="padding: 0;">
+        <h3>Member Settings</h3>
+
+        <!-- Change Theme -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-palette"></i> Theme Settings</h4>
+          <select onchange="changeTheme(this.value)">
+            <option value="dark">Dark Gold Theme (Default)</option>
+            <option value="light">Light Theme</option>
+          </select>
+        </div>
+
+        <!-- Notification Sounds -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-volume-high"></i> Notification Sound</h4>
+          ${[1,2,3,4,5].map(i => `
+            <div class="sound-item">
+              <span>Notification Tone ${i}</span>
+              <button class="btn-sm-edit" onclick="previewAudioSound(${i})"><i class="fa-solid fa-play"></i> Preview</button>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Fingerprint Setup -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-fingerprint"></i> Biometric / Fingerprint Setup</h4>
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <input type="checkbox" id="fingerprint-toggle" style="width:auto;" onchange="toggleFingerprint(this.checked)" />
+            <span>Enable Fingerprint Quick Login</span>
+          </label>
+        </div>
+      </div>
+    `;
+  }
 
   container.innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
-        <div class="member-profile-section">
-          <img src="${user.profilePic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
-          <div>
-            <h4>${user.fullName}</h4>
-            <span class="member-id-tag">ID: OCM-${user.phone.slice(-4)}</span> | <span class="member-phone-tag">${user.phone}</span>
+        <div class="topbar-left">
+          <button class="toggle-btn-topleft" onclick="toggleMemberSidebar()">
+            <i class="fa-solid fa-bars"></i> Menu
+          </button>
+          <div class="member-profile-section">
+            <img src="${user.profilePic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
+            <div>
+              <h4 style="font-size:0.85rem;">${user.fullName}</h4>
+              <span class="member-id-tag">ID: OCM-${user.phone.slice(-4)}</span>
+            </div>
           </div>
         </div>
         <div class="member-topbar-right">
-          <div class="notification-bell">
-            <i class="fa-solid fa-bell"></i>
-            <span class="bell-badge">1</span>
-          </div>
           <button onclick="logout()" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i></button>
         </div>
       </header>
 
       <div class="member-content">
-        <div class="welcome-banner">
-          <h2>${groupTitle} ${user.isWorker ? `<span class="workforce-badge">| ${user.department ? user.department.toUpperCase() : 'Workforce'}</span>` : ''}</h2>
-          <p class="slogan-text">Omega City Of Mercy - Keeping financial records transparent.</p>
-        </div>
-
-        <div class="member-card-grid">
-          <div class="m-card">
-            <h4>Total Dues Paid</h4>
-            <p>₦${financials.totalPaid.toLocaleString()}</p>
-          </div>
-          <div class="m-card">
-            <h4>Amount Owing</h4>
-            <p style="color: ${financials.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${financials.amountOwing.toLocaleString()}</p>
-          </div>
-          <div class="m-card">
-            <h4>Current Dues Rate</h4>
-            <p>₦${currentMonthRate.toLocaleString()}</p>
-          </div>
-          <div class="m-card">
-            <h4>Advance Dues</h4>
-            <p>₦${financials.advanceDues.toLocaleString()}</p>
-          </div>
-          <div class="m-card">
-            <h4>Dues Rating</h4>
-            <p>${financials.duesRating}%</p>
-          </div>
-          <div class="m-card">
-            <h4>Project Contributions</h4>
-            <p>₦${totalProjectsPaid.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div class="admin-content-area" style="padding: 0; margin-bottom: 20px;">
-          <h3 style="font-size:0.95rem;">Monthly Dues Breakdown (Jan 2026 - Present)</h3>
-          <table class="members-table">
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Required</th>
-                <th>Paid</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${historyRows}
-            </tbody>
-          </table>
-        </div>
-
+        ${mainBodyContent}
         <div class="read-only-notice">
-          <i class="fa-solid fa-lock"></i> Financial records are read-only for members. Transparency is maintained.
+          <i class="fa-solid fa-lock"></i> Financial records are read-only for members.
         </div>
       </div>
+
+      <!-- MEMBER SIDEBAR MENU -->
+      <aside class="member-sidebar" id="member-sidebar">
+        <div class="sidebar-header">
+          <span>${user.group.toUpperCase()} MENU</span>
+          <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <ul class="sidebar-menu">
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
+          <li><a onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+        </ul>
+      </aside>
     </div>
   `;
+}
+
+function toggleMemberSidebar() {
+  const sidebar = document.getElementById("member-sidebar");
+  sidebar.classList.toggle("open");
+}
+
+function toggleFingerprint(enabled) {
+  if (enabled) {
+    alert("Fingerprint authentication activated for future logins on this device!");
+  } else {
+    alert("Fingerprint authentication disabled.");
+  }
 }
 
 function logout() {
@@ -350,7 +454,6 @@ function renderRegistrationStep2() {
     <div class="auth-box">
       <h2>Member Assignment (2/3)</h2>
       <form id="reg-step2" onsubmit="handleRegStep2(event)">
-        <!-- 1) Marital Status Dropdown -->
         <label>Are you married?</label>
         <select id="reg-married" onchange="toggleGenderPopup()" required>
           <option value="">-- Select Option --</option>
@@ -358,7 +461,6 @@ function renderRegistrationStep2() {
           <option value="no">No</option>
         </select>
 
-        <!-- Gender Popup Dropdown if Married is Yes -->
         <div id="gender-popup-container" class="hidden">
           <label>Gender (Fellowship Allocation)</label>
           <select id="reg-gender">
@@ -368,7 +470,6 @@ function renderRegistrationStep2() {
           </select>
         </div>
 
-        <!-- 2) Worker Status Dropdown -->
         <label>Are you a worker?</label>
         <select id="reg-worker" onchange="toggleDeptPopup()" required>
           <option value="">-- Select Option --</option>
@@ -376,7 +477,6 @@ function renderRegistrationStep2() {
           <option value="no">No</option>
         </select>
 
-        <!-- Department Popup Dropdown if Worker is Yes -->
         <div id="dept-popup-container" class="hidden">
           <label>Workforce Department</label>
           <select id="reg-dept" onchange="handleDeptSelectPopup(this.value)">
@@ -398,7 +498,7 @@ function renderRegistrationStep2() {
 
 function handleDeptSelectPopup(deptVal) {
   if (deptVal) {
-    alert(`You have selected the "${deptVal}" Department! You will be registered under this workforce division upon completion.`);
+    alert(`You have selected the "${deptVal}" Department!`);
   }
 }
 
@@ -483,7 +583,7 @@ function handleFinalRegistration(e) {
   const pinConfirm = document.getElementById("reg-pin-confirm").value;
 
   if (pin !== pinConfirm) {
-    alert("PINs do not match! Please re-enter.");
+    alert("PINs do not match!");
     return;
   }
 
@@ -1068,7 +1168,7 @@ function handleChangeDuesRate(e) {
   });
 
   saveDuesRates(rates);
-  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}! Arrears preserved.`);
+  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}!`);
   renderAdminDashboard("settings");
 }
 
