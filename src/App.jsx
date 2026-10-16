@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import TransactionForm from './components/TransactionForm';
 
 function App() {
+  const [showForm, setShowForm] = useState(false);
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 space-y-6">
       {/* App Header */}
@@ -16,8 +19,9 @@ function App() {
         </p>
       </header>
 
-      {/* Financial Summary Cards */}
+      {/* Main Dashboard Content */}
       <main className="max-w-md mx-auto space-y-4">
+        {/* Financial Summary Cards */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex justify-between items-center shadow-md">
           <div>
             <p className="text-xs text-neutral-400">Total Income</p>
@@ -49,14 +53,29 @@ function App() {
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <button className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold rounded-xl shadow-md text-sm transition-all active:scale-95">
-            + Record Income
-          </button>
-          <button className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 font-bold rounded-xl shadow-md text-sm transition-all active:scale-95">
-            - Record Expense
-          </button>
-        </div>
+        {!showForm && (
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button 
+              onClick={() => setShowForm(true)}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold rounded-xl shadow-md text-sm transition-all active:scale-95"
+            >
+              + Record Income
+            </button>
+            <button 
+              onClick={() => setShowForm(true)}
+              className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 font-bold rounded-xl shadow-md text-sm transition-all active:scale-95"
+            >
+              - Record Expense
+            </button>
+          </div>
+        )}
+
+        {/* Transaction Form Modal */}
+        {showForm && (
+          <div className="pt-2">
+            <TransactionForm onClose={() => setShowForm(false)} />
+          </div>
+        )}
       </main>
     </div>
   );
