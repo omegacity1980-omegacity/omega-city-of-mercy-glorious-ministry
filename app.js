@@ -794,6 +794,10 @@ function renderAdminDashboard(view = "home") {
       <main class="admin-main">
         <header class="admin-topbar">
           <div class="topbar-left">
+            <!-- TOP LEFT SIDEBAR TOGGLE BUTTON -->
+            <button class="toggle-btn-topleft" onclick="toggleSidebar()">
+              <i class="fa-solid fa-bars"></i> Menu
+            </button>
             <h3>Admin Portal</h3>
           </div>
           <div class="topbar-right">
@@ -807,9 +811,6 @@ function renderAdminDashboard(view = "home") {
                 <span>Main Admin</span>
               </div>
             </div>
-            <button class="toggle-btn-topright" onclick="toggleSidebar()">
-              <i class="fa-solid fa-bars"></i> Menu
-            </button>
           </div>
         </header>
 
