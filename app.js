@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
+  initDuesConfig();
+
   // 1. 6-Second Loading Screen Timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
@@ -30,6 +32,104 @@ function getFinancialRecords(key) {
 
 function saveFinancialRecords(key, data) {
   localStorage.setItem(key, JSON.stringify(data));
+}
+
+function getDuesRates() {
+  return JSON.parse(localStorage.getItem("omega_dues_rates")) || [
+    { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
+  ];
+}
+
+function saveDuesRates(rates) {
+  localStorage.setItem("omega_dues_rates", JSON.stringify(rates));
+}
+
+function initDuesConfig() {
+  if (!localStorage.getItem("omega_dues_rates")) {
+    saveDuesRates([
+      { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
+    ]);
+  }
+}
+
+// Financial Ledger Engine Functions (Starting Jan 2026 - Oldest Unpaid First)
+function getRateForMonth(year, monthIndex) {
+  const monthStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+  const rates = getDuesRates().sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+  
+  let currentRate = rates[0].rate;
+  for (let r of rates) {
+    if (r.effectiveFrom <= monthStr) {
+      currentRate = r.rate;
+    } else {
+      break;
+    }
+  }
+  return currentRate;
+}
+
+function calculateMemberDues(phone) {
+  const payments = getFinancialRecords("omega_dues_payments").filter(p => p.memberPhone === phone);
+  let totalPaid = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  let monthLedger = [];
+  let startYear = 2026;
+
+  for (let y = startYear; y <= currentYear; y++) {
+    let endMonth = (y === currentYear) ? currentMonth : 11;
+    for (let m = 0; m <= endMonth; m++) {
+      let required = getRateForMonth(y, m);
+      let monthName = new Date(y, m, 1).toLocaleString('default', { month: 'short' });
+      monthLedger.push({
+        year: y,
+        month: m,
+        label: `${monthName} ${y}`,
+        required: required,
+        paid: 0,
+        status: 'unpaid'
+      });
+    }
+  }
+
+  let remainingPool = totalPaid;
+  let totalRequiredTillDate = 0;
+
+  monthLedger.forEach(item => {
+    totalRequiredTillDate += item.required;
+    if (remainingPool >= item.required) {
+      item.paid = item.required;
+      item.status = 'paid';
+      remainingPool -= item.required;
+    } else if (remainingPool > 0) {
+      item.paid = remainingPool;
+      item.status = 'partial';
+      remainingPool = 0;
+    } else {
+      item.paid = 0;
+      item.status = 'unpaid';
+    }
+  });
+
+  let advanceDues = remainingPool;
+  let amountOwing = totalRequiredTillDate > totalPaid ? (totalRequiredTillDate - totalPaid) : 0;
+  let duesRating = totalRequiredTillDate > 0 ? Math.round((totalPaid / totalRequiredTillDate) * 100) : 100;
+
+  return {
+    totalPaid,
+    amountOwing,
+    advanceDues,
+    duesRating,
+    ledger: monthLedger
+  };
+}
+
+function calculateMemberProjects(phone) {
+  const projects = getFinancialRecords("omega_projects").filter(p => p.memberPhone === phone);
+  return projects.reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
 // Render Authentication Choice Screen
@@ -98,6 +198,19 @@ function routeUserDashboard(user) {
   const container = document.getElementById("view-container");
   let groupTitle = `${user.group.toUpperCase()} Fellowship Dashboard`;
 
+  const financials = calculateMemberDues(user.phone);
+  const totalProjectsPaid = calculateMemberProjects(user.phone);
+  const currentMonthRate = getRateForMonth(new Date().getFullYear(), new Date().getMonth());
+
+  let historyRows = financials.ledger.map(item => `
+    <tr>
+      <td>${item.label}</td>
+      <td>₦${item.required.toLocaleString()}</td>
+      <td>₦${item.paid.toLocaleString()}</td>
+      <td><span class="badge ${item.status}">${item.status.toUpperCase()}</span></td>
+    </tr>
+  `).join("");
+
   container.innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
@@ -126,28 +239,45 @@ function routeUserDashboard(user) {
         <div class="member-card-grid">
           <div class="m-card">
             <h4>Total Dues Paid</h4>
-            <p>₦0.00</p>
+            <p>₦${financials.totalPaid.toLocaleString()}</p>
           </div>
           <div class="m-card">
             <h4>Amount Owing</h4>
-            <p>₦0.00</p>
+            <p style="color: ${financials.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${financials.amountOwing.toLocaleString()}</p>
           </div>
           <div class="m-card">
-            <h4>Current Dues</h4>
-            <p>₦1,000</p>
+            <h4>Current Dues Rate</h4>
+            <p>₦${currentMonthRate.toLocaleString()}</p>
           </div>
           <div class="m-card">
             <h4>Advance Dues</h4>
-            <p>₦0.00</p>
+            <p>₦${financials.advanceDues.toLocaleString()}</p>
           </div>
           <div class="m-card">
             <h4>Dues Rating</h4>
-            <p>0%</p>
+            <p>${financials.duesRating}%</p>
           </div>
           <div class="m-card">
             <h4>Project Contributions</h4>
-            <p>₦0.00</p>
+            <p>₦${totalProjectsPaid.toLocaleString()}</p>
           </div>
+        </div>
+
+        <div class="admin-content-area" style="padding: 0; margin-bottom: 20px;">
+          <h3 style="font-size:0.95rem;">Monthly Dues Breakdown (Jan 2026 - Present)</h3>
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Required</th>
+                <th>Paid</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${historyRows}
+            </tbody>
+          </table>
         </div>
 
         <div class="read-only-notice">
@@ -377,11 +507,16 @@ function renderAdminDashboard(view = "home") {
   const tithes = getFinancialRecords("omega_tithes");
   const offerings = getFinancialRecords("omega_offerings");
   const expenses = getFinancialRecords("omega_expenses");
+  const duesPayments = getFinancialRecords("omega_dues_payments");
+  const projectContributions = getFinancialRecords("omega_projects");
 
   const totalTithes = tithes.reduce((sum, item) => sum + Number(item.amount), 0);
   const totalOfferings = offerings.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalDues = duesPayments.reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalProjects = projectContributions.reduce((sum, item) => sum + Number(item.amount), 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
-  const totalInflow = totalTithes + totalOfferings;
+
+  const totalInflow = totalTithes + totalOfferings + totalDues + totalProjects;
   const balance = totalInflow - totalExpenses;
 
   if (view === "home") {
@@ -401,6 +536,96 @@ function renderAdminDashboard(view = "home") {
         </div>
       </section>
     `;
+  } else if (view === "dues-entry") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Member Dues Payment</h3>
+        <div class="settings-card">
+          <form onsubmit="handleDuesEntry(event)">
+            <label>Select Member</label>
+            <select id="dues-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Amount Paid (₦)</label>
+            <input type="number" id="dues-amount" min="1" required placeholder="e.g. 1000" />
+
+            <label>Payment Mode</label>
+            <select id="dues-mode" onchange="toggleBackdateFields()" required>
+              <option value="current">Current (Clear Oldest Arrears First)</option>
+              <option value="backdate">Backdate Specific Month</option>
+            </select>
+
+            <div id="backdate-fields" class="hidden">
+              <label>Historical Month Date</label>
+              <input type="date" id="dues-backdate" />
+            </div>
+
+            <button type="submit" class="btn-primary">Record Dues Payment</button>
+          </form>
+        </div>
+      </div>
+    `;
+  } else if (view === "projects") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+    const projects = getFinancialRecords("omega_projects");
+
+    let rows = projects.map((p, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${p.date}</td>
+        <td>${p.memberName}</td>
+        <td>${p.projectName}</td>
+        <td>₦${Number(p.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group / Building Project Contribution</h3>
+        <div class="settings-card">
+          <form onsubmit="handleProjectEntry(event)">
+            <label>Select Member</label>
+            <select id="proj-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Project / Levy Title</label>
+            <input type="text" id="proj-title" placeholder="e.g. Building Project / Men Annual Levy" required />
+
+            <label>Contribution Amount (₦)</label>
+            <input type="number" id="proj-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="proj-date" required />
+
+            <button type="submit" class="btn-primary">Record Contribution</button>
+          </form>
+        </div>
+
+        <h3>Project Contribution History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Member</th>
+              <th>Project</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No project records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
   } else if (view === "settings") {
     const users = getUsers();
     let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
@@ -408,6 +633,20 @@ function renderAdminDashboard(view = "home") {
     mainContentHtml = `
       <div class="admin-content-area">
         <h3>Settings & Administrative Controls</h3>
+
+        <!-- Change Monthly Dues Rate -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-coins"></i> Configure Monthly Dues Rate</h4>
+          <form onsubmit="handleChangeDuesRate(event)">
+            <label>New Monthly Amount (₦)</label>
+            <input type="number" id="new-dues-rate" min="1" required placeholder="e.g. 1000" />
+
+            <label>Effective Month (YYYY-MM)</label>
+            <input type="month" id="dues-effective-month" required />
+
+            <button type="submit" class="btn-primary">Update Dues Rate</button>
+          </form>
+        </div>
 
         <!-- Change Theme -->
         <div class="settings-card">
@@ -418,7 +657,7 @@ function renderAdminDashboard(view = "home") {
           </select>
         </div>
 
-        <!-- Notification Sound Preview & Setup -->
+        <!-- Notification Sound Preview -->
         <div class="settings-card">
           <h4><i class="fa-solid fa-volume-high"></i> Notification Sounds</h4>
           ${[1,2,3,4,5,6,7,8,9,10].map(i => `
@@ -584,6 +823,8 @@ function renderAdminDashboard(view = "home") {
         </div>
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+          <li><a onclick="renderAdminDashboard('dues-entry'); toggleSidebar();" class="${view === 'dues-entry' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> Dues Entry</a></li>
+          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
           <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
@@ -599,6 +840,90 @@ function renderAdminDashboard(view = "home") {
       </aside>
     </div>
   `;
+}
+
+function toggleBackdateFields() {
+  const mode = document.getElementById("dues-mode").value;
+  const backdateFields = document.getElementById("backdate-fields");
+  if (mode === "backdate") {
+    backdateFields.classList.remove("hidden");
+  } else {
+    backdateFields.classList.add("hidden");
+  }
+}
+
+function handleDuesEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("dues-member-phone").value;
+  const amount = parseFloat(document.getElementById("dues-amount").value);
+  const mode = document.getElementById("dues-mode").value;
+  const dateStr = mode === "backdate" ? document.getElementById("dues-backdate").value : new Date().toISOString().split('T')[0];
+
+  if (!phone || isNaN(amount) || amount <= 0) {
+    alert("Please fill in valid payment details!");
+    return;
+  }
+
+  const payments = getFinancialRecords("omega_dues_payments");
+  payments.push({
+    id: "TXN-" + Date.now(),
+    memberPhone: phone,
+    amount: amount,
+    mode: mode,
+    paymentDate: dateStr,
+    recordedBy: "Main Admin"
+  });
+
+  saveFinancialRecords("omega_dues_payments", payments);
+  alert(`Dues payment of ₦${amount.toLocaleString()} recorded successfully!`);
+  renderAdminDashboard("dues-entry");
+}
+
+function handleProjectEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("proj-member-phone").value;
+  const projectName = document.getElementById("proj-title").value.trim();
+  const amount = parseFloat(document.getElementById("proj-amount").value);
+  const date = document.getElementById("proj-date").value;
+
+  const users = getUsers();
+  const user = users.find(u => u.phone === phone);
+
+  const projects = getFinancialRecords("omega_projects");
+  projects.push({
+    memberPhone: phone,
+    memberName: user ? user.fullName : "Unknown",
+    projectName,
+    amount,
+    date
+  });
+
+  saveFinancialRecords("omega_projects", projects);
+  alert("Project contribution recorded successfully!");
+  renderAdminDashboard("projects");
+}
+
+function handleChangeDuesRate(e) {
+  e.preventDefault();
+  const rate = parseFloat(document.getElementById("new-dues-rate").value);
+  const monthStr = document.getElementById("dues-effective-month").value;
+
+  if (isNaN(rate) || rate <= 0 || !monthStr) {
+    alert("Invalid rate or effective month!");
+    return;
+  }
+
+  const rates = getDuesRates();
+  rates.push({
+    effectiveFrom: monthStr,
+    rate: rate,
+    admin: "Main Admin",
+    dateSet: new Date().toISOString()
+  });
+
+  saveDuesRates(rates);
+  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}! Arrears preserved.`);
+  renderAdminDashboard("settings");
 }
 
 function addFinancialEntry(e, key, viewType) {
