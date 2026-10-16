@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
-  // 6-Second Loading Screen Timer
+  // 1. 6-Second Loading Screen Timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
@@ -50,14 +50,6 @@ function initDuesConfig() {
       { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
     ]);
   }
-}
-
-function getNotifications() {
-  return JSON.parse(localStorage.getItem("omega_notifications")) || [];
-}
-
-function saveNotifications(notes) {
-  localStorage.setItem("omega_notifications", JSON.stringify(notes));
 }
 
 // Financial Ledger Engine Functions
@@ -143,7 +135,7 @@ function calculateMemberProjects(phone) {
   };
 }
 
-// AUTH SELECTION SCREEN
+// Render Authentication Choice Screen
 function renderAuthSelection() {
   const container = document.getElementById("view-container");
   container.innerHTML = `
@@ -202,40 +194,6 @@ function handleLogin(e) {
 
   localStorage.setItem("omega_current_user", JSON.stringify(user));
   routeUserDashboard(user, 'home');
-  checkGroupNotifications(user);
-}
-
-// CHECK & SHOW POPUP NOTIFICATIONS FOR MEMBER
-function checkGroupNotifications(user) {
-  const notes = getNotifications().filter(n => n.group === user.group && !n.readBy.includes(user.phone));
-  if (notes.length > 0) {
-    const latest = notes[0];
-    showNotificationPopup(latest, () => {
-      latest.readBy.push(user.phone);
-      let allNotes = getNotifications();
-      let idx = allNotes.findIndex(n => n.id === latest.id);
-      if (idx !== -1) allNotes[idx] = latest;
-      saveNotifications(allNotes);
-    });
-  }
-}
-
-function showNotificationPopup(note, onClose) {
-  const overlay = document.createElement("div");
-  overlay.className = "modal-overlay";
-  overlay.innerHTML = `
-    <div class="modal-content">
-      <h3><i class="fa-solid fa-bullhorn"></i> ${note.heading}</h3>
-      ${note.image ? `<img src="${note.image}" class="modal-img" />` : ''}
-      <p>${note.details}</p>
-      <button class="btn-primary" id="close-modal-btn">Dismiss</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  document.getElementById("close-modal-btn").onclick = () => {
-    document.body.removeChild(overlay);
-    if (onClose) onClose();
-  };
 }
 
 // MEMBER DASHBOARD ROUTING
@@ -247,7 +205,7 @@ function routeUserDashboard(user, view = 'home') {
   const projectsData = calculateMemberProjects(user.phone);
   const currentMonthRate = getRateForMonth(new Date().getFullYear(), new Date().getMonth());
 
-  let userNotifications = getNotifications().filter(n => n.group === user.group);
+  const userNotifications = getFinancialRecords(`omega_notifications_${user.group}`);
 
   let mainBodyContent = "";
 
@@ -342,17 +300,18 @@ function routeUserDashboard(user, view = 'home') {
       </div>
     `;
   } else if (view === 'notifications') {
-    let noteRows = userNotifications.map((n, idx) => `
-      <div class="settings-card" onclick="viewSingleNotification('${n.id}')" style="cursor:pointer;">
-        <h4><i class="fa-solid fa-bullhorn"></i> ${n.heading}</h4>
-        <p style="font-size:0.8rem; color:var(--text-muted);">${n.date} - Tap to view details</p>
+    let listHtml = userNotifications.map((n, i) => `
+      <div class="settings-card" onclick="viewNotificationDetail(${i}, '${user.group}')" style="cursor:pointer;">
+        <h4 style="color:var(--gold-primary); margin-bottom:4px;">${n.title}</h4>
+        <p style="font-size:0.75rem; color:var(--text-muted);">${n.date}</p>
+        <p style="font-size:0.85rem; margin-top:6px;">${n.message.substring(0, 60)}...</p>
       </div>
-    `).join("");
+    `).join('');
 
     mainBodyContent = `
       <div class="admin-content-area" style="padding: 0;">
-        <h3>Group Notifications</h3>
-        ${noteRows || '<p style="font-size:0.85rem; color:var(--text-muted);">No group notifications found.</p>'}
+        <h3>Group Broadcast Notifications</h3>
+        ${listHtml || '<p style="color:var(--text-muted);">No notifications yet.</p>'}
       </div>
     `;
   } else if (view === 'settings') {
@@ -379,6 +338,8 @@ function routeUserDashboard(user, view = 'home') {
     `;
   }
 
+  const isLeader = user.isGroupLeader;
+
   container.innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
@@ -395,11 +356,7 @@ function routeUserDashboard(user, view = 'home') {
           </div>
         </div>
         <div class="member-topbar-right">
-          ${user.isGroupLeader ? `
-            <button onclick="promptGroupLeaderPin('${user.phone}')" class="btn-leader-badge">
-              <i class="fa-solid fa-user-tie"></i> Group Leader
-            </button>
-          ` : ''}
+          ${isLeader ? `<button class="btn-group-leader-badge" onclick="promptLeaderPin('${user.phone}')"><i class="fa-solid fa-user-shield"></i> Group Leader</button>` : ''}
           <div class="notification-bell" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications')">
             <i class="fa-solid fa-bell"></i>
             <span class="bell-badge">${userNotifications.length}</span>
@@ -415,7 +372,6 @@ function routeUserDashboard(user, view = 'home') {
         </div>
       </div>
 
-      <!-- MEMBER SIDEBAR MENU -->
       <aside class="member-sidebar" id="member-sidebar">
         <div class="sidebar-header">
           <span>${user.group.toUpperCase()} MENU</span>
@@ -425,7 +381,7 @@ function routeUserDashboard(user, view = 'home') {
           <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
           <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
           <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Group Notifications</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</a></li>
           <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
           <li><a onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
@@ -434,90 +390,35 @@ function routeUserDashboard(user, view = 'home') {
   `;
 }
 
-function viewSingleNotification(noteId) {
-  const note = getNotifications().find(n => n.id === noteId);
-  if (note) {
-    showNotificationPopup(note, null);
+function promptLeaderPin(phone) {
+  const leader = getUsers().find(u => u.phone === phone);
+  const pinEntered = prompt("Enter your 7-Digit Group Leader PIN:");
+  if (pinEntered === leader.leaderPin) {
+    renderGroupLeaderDashboard(leader, 'members');
+  } else if (pinEntered !== null) {
+    alert("Incorrect 7-Digit Group Leader PIN!");
   }
 }
 
-function promptGroupLeaderPin(phone) {
-  const user = getUsers().find(u => u.phone === phone);
-  if (!user || !user.leaderPin) return;
-
-  const pin = prompt("Enter your 7-Digit Group Leader PIN:");
-  if (pin === user.leaderPin) {
-    renderGroupLeaderDashboard(user, 'home');
-  } else if (pin !== null) {
-    alert("Incorrect 7-Digit PIN!");
-  }
-}
-
-// GROUP LEADER DASHBOARD PORTAL
-function renderGroupLeaderDashboard(leader, view = 'home') {
+// GROUP LEADER DASHBOARD
+function renderGroupLeaderDashboard(leader, view = 'members') {
   const container = document.getElementById("view-container");
   const users = getUsers().filter(u => u.group === leader.group);
 
-  let mainContent = "";
+  let leaderContentHtml = "";
 
-  if (view === 'home' || view === 'money-info') {
-    // Dynamic Money Calculation formula
-    const groupExpenses = getFinancialRecords("omega_group_expenses").filter(e => e.group === leader.group);
-    const totalExpenses = groupExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-
-    const groupDues = getFinancialRecords("omega_dues_payments").filter(p => {
-      let u = users.find(x => x.phone === p.memberPhone);
-      return u !== undefined;
-    });
-    const totalDues = groupDues.reduce((sum, d) => sum + Number(d.amount), 0);
-
-    const groupProjects = getFinancialRecords("omega_projects").filter(p => p.memberPhone && users.some(u => u.phone === p.memberPhone));
-    const paidProjectLevy = groupProjects.reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const handoverMoney = leader.handoverMoney || 0;
-    const totalBalance = (handoverMoney + totalDues + paidProjectLevy) - totalExpenses;
-
-    mainContent = `
-      <div class="welcome-banner">
-        <h2>${leader.group.toUpperCase()} LEADER PORTAL</h2>
-        <p class="slogan-text">Financial Overview & Administrative Control</p>
-      </div>
-
-      <div class="grid-2col">
-        <div class="leader-card">
-          <h4>Handover Money</h4>
-          <p>₦${handoverMoney.toLocaleString()}</p>
-        </div>
-        <div class="leader-card">
-          <h4>Total Dues Collected</h4>
-          <p>₦${totalDues.toLocaleString()}</p>
-        </div>
-        <div class="leader-card">
-          <h4>Paid Project Levy</h4>
-          <p>₦${paidProjectLevy.toLocaleString()}</p>
-        </div>
-        <div class="leader-card">
-          <h4>Total Group Expenses</h4>
-          <p>₦${totalExpenses.toLocaleString()}</p>
-        </div>
-        <div class="leader-card" style="grid-column: span 2;">
-          <h4>Total Group Net Balance</h4>
-          <p style="font-size:1.4rem; color:var(--success);">₦${totalBalance.toLocaleString()}</p>
-        </div>
-      </div>
-    `;
-  } else if (view === 'members-details') {
-    let rows = users.map((u, idx) => `
+  if (view === 'members') {
+    let rows = users.map((u, index) => `
       <tr>
-        <td>${idx + 1}</td>
+        <td>${index + 1}</td>
         <td>${u.fullName}</td>
         <td>${u.phone}</td>
         <td>${u.whatsapp || u.phone}</td>
-        <td>${u.isExco ? u.excoRole : 'Member'}</td>
+        <td>${u.excoRole || 'Member'}</td>
       </tr>
     `).join("");
 
-    mainContent = `
+    leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
         <h3>${leader.group.toUpperCase()} Fellowship Members</h3>
         <table class="members-table">
@@ -527,7 +428,7 @@ function renderGroupLeaderDashboard(leader, view = 'home') {
               <th>Full Name</th>
               <th>Phone</th>
               <th>WhatsApp</th>
-              <th>Role</th>
+              <th>Assigned Exco Role</th>
             </tr>
           </thead>
           <tbody>
@@ -537,12 +438,15 @@ function renderGroupLeaderDashboard(leader, view = 'home') {
       </div>
     `;
   } else if (view === 'choose-excos') {
-    let excos = users.filter(u => u.isExco);
-    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+    const existingExcos = users.filter(u => u.excoRole);
 
-    mainContent = `
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('');
+
+    leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
-        <h3>Assign Fellowship Excos (Min 6)</h3>
+        <h3>Assign Fellowship Executive (Exco) Roles (Max 6)</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:15px;">Currently assigned: ${existingExcos.length} / 6</p>
+        
         <div class="settings-card">
           <form onsubmit="handleAssignExco(event, '${leader.phone}')">
             <label>Select Group Member</label>
@@ -552,130 +456,199 @@ function renderGroupLeaderDashboard(leader, view = 'home') {
             </select>
 
             <label>Assign Exco Role</label>
-            <select id="exco-role" required>
-              <option value="Group Secretary">Secretary</option>
-              <option value="Financial Secretary">Financial Secretary</option>
-              <option value="Treasurer">Treasurer</option>
-              <option value="P.R.O">P.R.O</option>
-              <option value="Welfare Officer">Welfare Officer</option>
-              <option value="Organizing Secretary">Organizing Secretary</option>
-            </select>
+            <input type="text" id="exco-role-name" placeholder="e.g. Vice Chairman, Secretary, Treasurer, Welfare" required />
 
-            <button type="submit" class="btn-primary">Assign Exco Role</button>
+            <button type="submit" class="btn-primary" ${existingExcos.length >= 6 ? 'disabled' : ''}>
+              ${existingExcos.length >= 6 ? 'Maximum Excos Reached (6)' : 'Save Exco Role'}
+            </button>
           </form>
         </div>
 
-        <h3>Current Assigned Excos (${excos.length})</h3>
+        <h3>Assigned Excos</h3>
         <table class="members-table">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Member Name</th>
               <th>Phone</th>
-              <th>Assigned Exco Role</th>
+              <th>Assigned Role</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            ${excos.map(e => `<tr><td>${e.fullName}</td><td>${e.phone}</td><td>${e.excoRole}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;">No excos assigned yet.</td></tr>'}
+            ${existingExcos.map(e => `
+              <tr>
+                <td>${e.fullName}</td>
+                <td>${e.phone}</td>
+                <td>${e.excoRole}</td>
+                <td><button onclick="removeExcoRole('${e.phone}', '${leader.phone}')" class="btn-sm-danger">Remove</button></td>
+              </tr>
+            `).join('') || '<tr><td colspan="4" style="text-align:center;">No excos assigned yet.</td></tr>'}
           </tbody>
         </table>
       </div>
     `;
   } else if (view === 'dues-records') {
-    mainContent = `
+    leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
-        <h3>View Member Dues Record</h3>
+        <h3>Member Dues Lookup</h3>
         <div class="settings-card">
-          <input type="text" id="leader-search-member" placeholder="Search member by name..." onkeyup="filterLeaderDuesList('${leader.group}')" />
+          <input type="text" id="leader-search-input" placeholder="Search member by name..." oninput="filterLeaderDuesSearch('${leader.group}')" />
+          <label style="margin-top:10px;">Select Calendar Month</label>
+          <input type="month" id="leader-month-filter" onchange="filterLeaderDuesSearch('${leader.group}')" />
         </div>
 
         <div id="leader-dues-results">
-          ${generateLeaderDuesTable(users)}
+          ${generateLeaderDuesTable(users, leader.group)}
         </div>
       </div>
     `;
-  } else if (view === 'project-levy') {
-    const groupProjects = getFinancialRecords("omega_projects").filter(p => users.some(u => u.phone === p.memberPhone));
-    let rows = groupProjects.map((p, idx) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${p.date}</td>
-        <td>${p.memberName}</td>
-        <td>${p.projectName}</td>
-        <td>₦${Number(p.amount).toLocaleString()}</td>
-      </tr>
-    `).join("");
+  } else if (view === 'projects') {
+    const projects = getFinancialRecords("omega_projects");
+    const groupProjects = projects.filter(p => users.some(u => u.phone === p.memberPhone));
 
-    mainContent = `
+    leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
-        <h3>Group Project & Levy History</h3>
+        <h3>Group Project Levy History</h3>
         <table class="members-table">
           <thead>
             <tr>
               <th>S/N</th>
               <th>Date</th>
-              <th>Member Name</th>
+              <th>Member</th>
               <th>Project Title</th>
               <th>Amount Paid</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="5" style="text-align:center;">No project levy records found.</td></tr>'}
+            ${groupProjects.map((p, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${p.date}</td>
+                <td>${p.memberName}</td>
+                <td>${p.projectName}</td>
+                <td>₦${Number(p.amount).toLocaleString()}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="5" style="text-align:center;">No project levy records.</td></tr>'}
           </tbody>
         </table>
       </div>
     `;
-  } else if (view === 'send-notification') {
-    mainContent = `
+  } else if (view === 'notifications') {
+    leaderContentHtml = `
       <div class="admin-content-area" style="padding:0;">
-        <h3>Send Broadcast Message to ${leader.group.toUpperCase()}</h3>
+        <h3>Send Broadcast Popup Notification to ${leader.group.toUpperCase()} Fellowship</h3>
         <div class="settings-card">
-          <form onsubmit="handleSendGroupNotification(event, '${leader.group}')">
-            <label>Heading Title</label>
-            <input type="text" id="note-heading" placeholder="e.g. Monthly Fellowship Meeting" required />
+          <form onsubmit="handleSendGroupBroadcast(event, '${leader.group}')">
+            <label>Heading Details / Title</label>
+            <input type="text" id="notif-title" required placeholder="e.g. Monthly Fellowship Meeting Notice" />
 
-            <label>Details / Message Body</label>
-            <textarea id="note-details" rows="4" placeholder="Enter message text..." required></textarea>
+            <label>Message Content</label>
+            <textarea id="notif-msg" rows="4" required placeholder="Write message details..."></textarea>
 
-            <label>Picture Link (Optional URL)</label>
-            <input type="url" id="note-image" placeholder="https://..." />
+            <label>Upload Picture (Optional)</label>
+            <input type="file" id="notif-img" accept="image/*" />
 
-            <button type="submit" class="btn-primary">Broadcast Message to Group</button>
+            <button type="submit" class="btn-primary">Send Notification to Group</button>
           </form>
+        </div>
+      </div>
+    `;
+  } else if (view === 'money-info') {
+    const handoverMoney = Number(localStorage.getItem(`omega_handover_${leader.group}`)) || 0;
+
+    const duesPayments = getFinancialRecords("omega_dues_payments").filter(p => users.some(u => u.phone === p.memberPhone));
+    const totalDues = duesPayments.reduce((s, p) => s + Number(p.amount), 0);
+
+    const projects = getFinancialRecords("omega_projects").filter(p => users.some(u => u.phone === p.memberPhone));
+    const paidProjectLevy = projects.reduce((s, p) => s + Number(p.amount), 0);
+
+    const groupExpenses = getFinancialRecords("omega_group_expenses").filter(e => e.group === leader.group);
+    const totalExpenses = groupExpenses.reduce((s, e) => s + Number(e.amount), 0);
+
+    // Formula: Handover Money + Total Dues + Paid Project Levy - Total Expenses = Total Balance
+    const totalBalance = handoverMoney + totalDues + paidProjectLevy - totalExpenses;
+
+    let totalArrears = 0;
+    users.forEach(u => {
+      let calc = calculateMemberDues(u.phone);
+      totalArrears += calc.amountOwing;
+    });
+
+    leaderContentHtml = `
+      <div class="admin-content-area" style="padding:0;">
+        <h3>${leader.group.toUpperCase()} Fellowship Money Info</h3>
+
+        <div class="settings-card">
+          <form onsubmit="saveHandoverMoney(event, '${leader.group}')">
+            <label>Set / Update Group Handover Money (₦)</label>
+            <input type="number" id="handover-input" value="${handoverMoney}" required />
+            <button type="submit" class="btn-primary">Save Handover Money</button>
+          </form>
+        </div>
+
+        <div class="two-col-grid">
+          <div class="m-card">
+            <h4>Handover Money</h4>
+            <p>₦${handoverMoney.toLocaleString()}</p>
+          </div>
+          <div class="m-card">
+            <h4>Total Dues</h4>
+            <p>₦${totalDues.toLocaleString()}</p>
+          </div>
+          <div class="m-card">
+            <h4>Total Arrears</h4>
+            <p style="color:var(--danger)">₦${totalArrears.toLocaleString()}</p>
+          </div>
+          <div class="m-card">
+            <h4>Paid Project Levy</h4>
+            <p>₦${paidProjectLevy.toLocaleString()}</p>
+          </div>
+          <div class="m-card">
+            <h4>Total Expenses</h4>
+            <p style="color:var(--danger)">₦${totalExpenses.toLocaleString()}</p>
+          </div>
+          <div class="m-card" style="border: 1px solid var(--gold-primary);">
+            <h4>Total Balance</h4>
+            <p style="font-size:1.3rem;">₦${totalBalance.toLocaleString()}</p>
+          </div>
         </div>
       </div>
     `;
   }
 
   container.innerHTML = `
-    <div class="leader-dashboard-wrapper">
-      <header class="leader-topbar">
-        <div class="topbar-left">
-          <button class="toggle-btn-topleft" onclick="toggleLeaderSidebar()">
-            <i class="fa-solid fa-bars"></i> Menu
-          </button>
-          <h3>${leader.group.toUpperCase()} LEADER</h3>
-        </div>
-        <div class="leader-topbar-right">
-          <button onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')" class="btn-sm-edit">Return to Member View</button>
-        </div>
-      </header>
+    <div class="admin-wrapper">
+      <main class="admin-main">
+        <header class="admin-topbar">
+          <div class="topbar-left">
+            <button class="toggle-btn-topleft" onclick="toggleLeaderSidebar()">
+              <i class="fa-solid fa-bars"></i> Menu
+            </button>
+            <h3>${leader.group.toUpperCase()} LEADER PORTAL</h3>
+          </div>
+          <div class="topbar-right">
+            <button onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')" class="btn-logout"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </header>
 
-      <div class="leader-content">
-        ${mainContent}
-      </div>
+        <div style="padding:20px;">
+          ${leaderContentHtml}
+        </div>
+      </main>
 
-      <aside class="leader-sidebar" id="leader-sidebar">
+      <aside class="admin-sidebar" id="leader-sidebar">
         <div class="sidebar-header">
-          <span>LEADER NAVIGATION</span>
+          <span>LEADER MENU</span>
           <button class="close-sidebar-btn" onclick="toggleLeaderSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home'); toggleLeaderSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Money Info</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'members-details'); toggleLeaderSidebar();" class="${view === 'members-details' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View Members Details</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'choose-excos'); toggleLeaderSidebar();" class="${view === 'choose-excos' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Choose Excos</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'dues-records'); toggleLeaderSidebar();" class="${view === 'dues-records' ? 'active' : ''}"><i class="fa-solid fa-file-invoice-dollar"></i> View Member Dues Record</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'project-levy'); toggleLeaderSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy History</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'send-notification'); toggleLeaderSidebar();" class="${view === 'send-notification' ? 'active' : ''}"><i class="fa-solid fa-bullhorn"></i> Group Notification</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'members'); toggleLeaderSidebar();" class="${view === 'members' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View Members Details</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'choose-excos'); toggleLeaderSidebar();" class="${view === 'choose-excos' ? 'active' : ''}"><i class="fa-solid fa-user-plus"></i> Choose Excos (Max 6)</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'dues-records'); toggleLeaderSidebar();" class="${view === 'dues-records' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> View Members Dues Record</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'projects'); toggleLeaderSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy History</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'notifications'); toggleLeaderSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bullhorn"></i> Group Notification Broadcast</a></li>
+          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'money-info'); toggleLeaderSidebar();" class="${view === 'money-info' ? 'active' : ''}"><i class="fa-solid fa-sack-dollar"></i> Money Info</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')"><i class="fa-solid fa-arrow-left"></i> Exit Leader Portal</a></li>
         </ul>
       </aside>
     </div>
@@ -683,124 +656,166 @@ function renderGroupLeaderDashboard(leader, view = 'home') {
 }
 
 function toggleLeaderSidebar() {
-  document.getElementById("leader-sidebar").classList.toggle("open");
+  const sidebar = document.getElementById("leader-sidebar");
+  sidebar.classList.toggle("open");
 }
 
 function handleAssignExco(e, leaderPhone) {
   e.preventDefault();
-  const memberPhone = document.getElementById("exco-member-phone").value;
-  const excoRole = document.getElementById("exco-role").value;
+  const targetPhone = document.getElementById("exco-member-phone").value;
+  const roleName = document.getElementById("exco-role-name").value.trim();
 
   let users = getUsers();
-  let u = users.find(x => x.phone === memberPhone);
-  if (u) {
-    u.isExco = true;
-    u.excoRole = excoRole;
+  let member = users.find(u => u.phone === targetPhone);
+  if (member) {
+    member.excoRole = roleName;
     saveUsers(users);
-    alert(`${u.fullName} assigned as ${excoRole}!`);
-    renderGroupLeaderDashboard(users.find(x => x.phone === leaderPhone), 'choose-excos');
+    alert(`${member.fullName} assigned as ${roleName}!`);
+    renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'choose-excos');
   }
 }
 
-function filterLeaderDuesList(group) {
-  const query = document.getElementById("leader-search-member").value.toLowerCase();
-  const users = getUsers().filter(u => u.group === group && u.fullName.toLowerCase().includes(query));
-  document.getElementById("leader-dues-results").innerHTML = generateLeaderDuesTable(users);
+function removeExcoRole(phone, leaderPhone) {
+  let users = getUsers();
+  let member = users.find(u => u.phone === phone);
+  if (member) {
+    delete member.excoRole;
+    saveUsers(users);
+    alert("Exco role removed.");
+    renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'choose-excos');
+  }
 }
 
-function generateLeaderDuesTable(users) {
-  let rows = users.map(u => {
-    let fin = calculateMemberDues(u.phone);
-    return `
-      <tr>
-        <td>${u.fullName}</td>
-        <td>₦${fin.totalPaid.toLocaleString()}</td>
-        <td>₦${fin.amountOwing.toLocaleString()}</td>
-        <td><button onclick="viewMemberFullLedger('${u.phone}')" class="btn-sm-edit">View History</button></td>
-      </tr>
-    `;
-  }).join("");
-
+function generateLeaderDuesTable(usersList, groupKey) {
   return `
     <table class="members-table">
       <thead>
         <tr>
           <th>Member Name</th>
+          <th>Phone</th>
           <th>Total Paid</th>
-          <th>Amount Owing</th>
+          <th>Arrears / Owing</th>
           <th>Action</th>
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr><td colspan="4" style="text-align:center;">No members found.</td></tr>'}
+        ${usersList.map(u => {
+          let dues = calculateMemberDues(u.phone);
+          return `
+            <tr>
+              <td>${u.fullName}</td>
+              <td>${u.phone}</td>
+              <td>₦${dues.totalPaid.toLocaleString()}</td>
+              <td style="color:${dues.amountOwing > 0 ? 'var(--danger)' : 'var(--gold-primary)'}">₦${dues.amountOwing.toLocaleString()}</td>
+              <td><button class="btn-sm-edit" onclick="viewMemberLedgerModal('${u.phone}')">View Dues History</button></td>
+            </tr>
+          `;
+        }).join('')}
       </tbody>
     </table>
   `;
 }
 
-function viewMemberFullLedger(phone) {
-  const u = getUsers().find(x => x.phone === phone);
-  if (!u) return;
-  const fin = calculateMemberDues(phone);
-
-  let ledgerRows = fin.ledger.map(i => `
-    <tr>
-      <td>${i.label}</td>
-      <td>₦${i.required.toLocaleString()}</td>
-      <td>₦${i.paid.toLocaleString()}</td>
-      <td><span class="badge ${i.status}">${i.status.toUpperCase()}</span></td>
-    </tr>
-  `).join("");
-
-  const overlay = document.createElement("div");
-  overlay.className = "modal-overlay";
-  overlay.innerHTML = `
-    <div class="modal-content" style="max-width:500px; max-height:80vh; overflow-y:auto;">
-      <h3>${u.fullName}'s Dues Ledger</h3>
-      <table class="members-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Rate</th>
-            <th>Paid</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${ledgerRows}
-        </tbody>
-      </table>
-      <button class="btn-primary" id="close-ledger-btn" style="margin-top:15px;">Close</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  document.getElementById("close-ledger-btn").onclick = () => document.body.removeChild(overlay);
+function filterLeaderDuesSearch(groupKey) {
+  const query = document.getElementById("leader-search-input").value.toLowerCase();
+  const users = getUsers().filter(u => u.group === groupKey && u.fullName.toLowerCase().includes(query));
+  document.getElementById("leader-dues-results").innerHTML = generateLeaderDuesTable(users, groupKey);
 }
 
-function handleSendGroupNotification(e, group) {
+function viewMemberLedgerModal(phone) {
+  const user = getUsers().find(u => u.phone === phone);
+  const dues = calculateMemberDues(phone);
+
+  let rows = dues.ledger.map(item => `
+    <tr>
+      <td>${item.label}</td>
+      <td>₦${item.required.toLocaleString()}</td>
+      <td>₦${item.paid.toLocaleString()}</td>
+      <td><span class="badge ${item.status}">${item.status.toUpperCase()}</span></td>
+    </tr>
+  `).join('');
+
+  const modalHtml = `
+    <div class="modal-overlay" id="ledger-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>${user.fullName} Dues Breakdown</h3>
+          <button onclick="document.getElementById('ledger-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="max-height:300px; overflow-y:auto;">
+          <table class="members-table">
+            <thead>
+              <tr><th>Month</th><th>Req</th><th>Paid</th><th>Status</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function handleSendGroupBroadcast(e, groupKey) {
   e.preventDefault();
-  const heading = document.getElementById("note-heading").value.trim();
-  const details = document.getElementById("note-details").value.trim();
-  const image = document.getElementById("note-image").value.trim();
+  const title = document.getElementById("notif-title").value.trim();
+  const message = document.getElementById("notif-msg").value.trim();
+  const fileInput = document.getElementById("notif-img");
 
-  const notes = getNotifications();
-  notes.push({
-    id: "NOTE-" + Date.now(),
-    group: group,
-    heading: heading,
-    details: details,
-    image: image,
-    date: new Date().toLocaleDateString(),
-    readBy: []
-  });
+  const records = getFinancialRecords(`omega_notifications_${groupKey}`);
 
-  saveNotifications(notes);
-  alert("Broadcast message successfully sent to all members of " + group.toUpperCase() + "!");
-  renderGroupLeaderDashboard(getUsers().find(u => u.group === group && u.isGroupLeader), 'send-notification');
+  const saveBroadcast = (imgData = "") => {
+    records.unshift({
+      title,
+      message,
+      image: imgData,
+      date: new Date().toLocaleString()
+    });
+    saveFinancialRecords(`omega_notifications_${groupKey}`, records);
+    alert(`Broadcast notification sent to all ${groupKey.toUpperCase()} members!`);
+    alert(`POPUP NOTIFICATION:\n\n[${title}]\n${message}`);
+  };
+
+  if (fileInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(evt) { saveBroadcast(evt.target.result); };
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    saveBroadcast();
+  }
+}
+
+function viewNotificationDetail(index, groupKey) {
+  const records = getFinancialRecords(`omega_notifications_${groupKey}`);
+  const notif = records[index];
+  if (!notif) return;
+
+  const modalHtml = `
+    <div class="modal-overlay" id="notif-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>${notif.title}</h3>
+          <button onclick="document.getElementById('notif-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px;">${notif.date}</p>
+        ${notif.image ? `<img src="${notif.image}" style="width:100%; border-radius:6px; margin-bottom:10px;" />` : ''}
+        <p style="font-size:0.9rem; line-height:1.4;">${notif.message}</p>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function saveHandoverMoney(e, groupKey) {
+  e.preventDefault();
+  const val = document.getElementById("handover-input").value;
+  localStorage.setItem(`omega_handover_${groupKey}`, val);
+  alert("Handover money updated successfully!");
 }
 
 function toggleMemberSidebar() {
-  document.getElementById("member-sidebar").classList.toggle("open");
+  const sidebar = document.getElementById("member-sidebar");
+  sidebar.classList.toggle("open");
 }
 
 function logout() {
@@ -890,7 +905,7 @@ function renderRegistrationStep2() {
 
         <div id="dept-popup-container" class="hidden">
           <label>Workforce Department</label>
-          <select id="reg-dept">
+          <select id="reg-dept" onchange="handleDeptSelectPopup(this.value)">
             <option value="">-- Select Department --</option>
             <option value="Sanitation">Sanitation</option>
             <option value="Technical">Technical</option>
@@ -905,6 +920,12 @@ function renderRegistrationStep2() {
       </form>
     </div>
   `;
+}
+
+function handleDeptSelectPopup(deptVal) {
+  if (deptVal) {
+    alert(`You have selected the "${deptVal}" Department!`);
+  }
 }
 
 function toggleGenderPopup() {
@@ -1037,6 +1058,11 @@ function renderAdminLogin() {
           <input type="password" id="admin-pin" maxlength="8" required placeholder="********" />
         </div>
         <button type="submit" class="btn-primary">Access Admin Portal</button>
+        
+        <a href="data:text/html;charset=utf-8,${encodeURIComponent('<h1>OMEGA CITY OF MERCY - MAIN ADMIN PORTAL</h1><p>Separate Downloadable Login</p>')}" download="Main_Admin_Portal.html" class="download-link">
+          <i class="fa-solid fa-download"></i> Download Separate Admin Login
+        </a>
+
         <button type="button" onclick="renderAuthSelection()" class="btn-text">Back to Home</button>
       </form>
     </div>
@@ -1051,6 +1077,7 @@ function handleAdminLogin(e) {
 // ADMIN DASHBOARD
 function renderAdminDashboard(view = "home") {
   const container = document.getElementById("view-container");
+  
   let mainContentHtml = "";
 
   const tithes = getFinancialRecords("omega_tithes");
@@ -1093,68 +1120,65 @@ function renderAdminDashboard(view = "home") {
         </div>
       </section>
     `;
-  } else if (view === "group-leaders") {
+  } else if (view === "leaders") {
     const users = getUsers();
-    const groupLeaders = users.filter(u => u.isGroupLeader);
+    const groups = ["men", "women", "youth"];
 
-    let leaderCards = groupLeaders.map(l => {
-      let excos = users.filter(u => u.group === l.group && u.isExco);
+    let leadersGridHtml = groups.map(grpKey => {
+      let leader = users.find(u => u.group === grpKey && u.isGroupLeader);
+      let excos = users.filter(u => u.group === grpKey && u.excoRole);
+
       return `
-        <div class="summary-card">
-          <h4 style="color:var(--gold-primary); font-size:0.9rem;">${l.group.toUpperCase()} LEADER</h4>
-          <p style="font-size:1rem; margin-top:4px;">${l.fullName}</p>
-          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
-            <div>Phone: ${l.phone}</div>
-            <div>WhatsApp: ${l.whatsapp || l.phone}</div>
-          </div>
+        <div class="leader-card">
+          <h3>${grpKey.toUpperCase()} FELLOWSHIP</h3>
+          ${leader ? `
+            <div class="leader-info-item"><strong>Leader:</strong> ${leader.fullName}</div>
+            <div class="leader-info-item"><strong>Phone:</strong> ${leader.phone}</div>
+            <div class="leader-info-item"><strong>WhatsApp:</strong> ${leader.whatsapp || leader.phone}</div>
+          ` : `<p style="font-size:0.8rem; color:var(--danger);">No Group Leader appointed yet.</p>`}
+
           <div class="exco-list">
-            <strong>Group Excos (${excos.length}):</strong>
+            <h4 style="font-size:0.75rem; color:var(--gold-primary);">Assigned Group Excos:</h4>
             ${excos.map(e => `
-              <div class="exco-item">
-                <div><strong>${e.fullName}</strong> (${e.excoRole})</div>
-                <div>Ph: ${e.phone} \vert{} WA:${e.whatsapp || e.phone}</div>
-              </div>
-            `).join('') || '<div style="font-size:0.7rem;">No excos assigned yet.</div>'}
+              <div class="exco-item">• <strong>${e.fullName}</strong> (${e.excoRole}) -${e.phone}</div>
+            `).join('') || '<p style="font-size:0.7rem; color:var(--text-muted);">No excos assigned.</p>'}
           </div>
         </div>
       `;
-    }).join("");
+    }).join('');
 
     mainContentHtml = `
       <div class="admin-content-area">
-        <h3>Assign Fellowship Group Leader</h3>
+        <h3>Appoint / Assign Group Leaders</h3>
         <div class="settings-card">
-          <form onsubmit="handleAssignGroupLeader(event)">
-            <label>Select Fellowship Group</label>
-            <select id="leader-group-select" onchange="filterAdminMemberDropdown(this.value)" required>
+          <form onsubmit="handleAppointGroupLeader(event)">
+            <label>1. Select Fellowship Group</label>
+            <select id="leader-group-select" onchange="filterMembersBySelectedGroup(this.value)" required>
               <option value="">-- Select Group --</option>
               <option value="men">Men Fellowship</option>
               <option value="women">Women Fellowship</option>
               <option value="youth">Youth Fellowship</option>
             </select>
 
-            <label>Search / Select Member</label>
-            <select id="leader-member-phone" required>
-              <option value="">-- Select Fellowship First --</option>
+            <label>2. Search & Select Group Member</label>
+            <select id="leader-member-select" required>
+              <option value="">-- Select Group First --</option>
             </select>
 
-            <label>Assign 7-Digit Leader PIN</label>
-            <input type="password" id="leader-7digit-pin" maxlength="7" minlength="7" required placeholder="*******" />
+            <label>3. Assign 7-Digit Leader PIN</label>
+            <input type="password" id="leader-7digit-pin" maxlength="7" minlength="7" placeholder="*******" required />
 
-            <label>Initial Handover Money (₦)</label>
-            <input type="number" id="leader-handover" placeholder="e.g. 50000" />
-
-            <button type="submit" class="btn-primary">Make Group Leader & Save</button>
+            <button type="submit" class="btn-primary">Appoint Group Leader & Save PIN</button>
           </form>
         </div>
 
-        <h3>Group Leaders & Excos (2-Column Grid)</h3>
-        <div class="cards-container">
-          ${leaderCards || '<p style="font-size:0.85rem; color:var(--text-muted); grid-column:span 2;">No group leaders assigned yet.</p>'}
+        <h3>Group Leaders & Executive Overview</h3>
+        <div class="two-col-grid">
+          ${leadersGridHtml}
         </div>
       </div>
     `;
-  } else if (["all", "men", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children", "leaders"].includes(view)) {
+  } else if (["all", "men", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
 
@@ -1168,7 +1192,6 @@ function renderAdminDashboard(view = "home") {
     else if (view === "dept-choir") filteredUsers = users.filter(u => u.department === "Choir");
     else if (view === "dept-usher") filteredUsers = users.filter(u => u.department === "Usher");
     else if (view === "dept-children") filteredUsers = users.filter(u => u.department === "Children class");
-    else if (view === "leaders") filteredUsers = users.filter(u => u.isGroupLeader || u.isExco);
 
     let rows = filteredUsers.map((u, index) => `
       <tr>
@@ -1208,6 +1231,7 @@ function renderAdminDashboard(view = "home") {
     `;
   } else if (view === "group-expenses") {
     const records = getFinancialRecords("omega_group_expenses");
+
     let rows = records.map((r, index) => `
       <tr>
         <td>${index + 1}</td>
@@ -1381,7 +1405,7 @@ function renderAdminDashboard(view = "home") {
         </div>
 
         <div class="settings-card">
-          <h4><i class="fa-solid fa-key"></i> Reset Member / Leader PIN</h4>
+          <h4><i class="fa-solid fa-key"></i> Reset Member / Leader / Exco PIN</h4>
           <form onsubmit="handleResetPin(event)">
             <label>Select User</label>
             <select id="reset-user-phone" required>
@@ -1447,9 +1471,15 @@ function renderAdminDashboard(view = "home") {
             <h3>Admin Portal</h3>
           </div>
           <div class="topbar-right">
+            <div class="notification-bell">
+              <i class="fa-solid fa-bell"></i>
+              <span class="bell-badge">3</span>
+            </div>
             <div class="admin-profile">
               <img src="https://via.placeholder.com/36" class="admin-avatar" alt="Admin" />
-              <div class="admin-info"><span>Main Admin</span></div>
+              <div class="admin-info">
+                <span>Main Admin</span>
+              </div>
             </div>
           </div>
         </header>
@@ -1464,9 +1494,9 @@ function renderAdminDashboard(view = "home") {
         </div>
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+          <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Group Leaders</a></li>
           <li><a onclick="renderAdminDashboard('dues-entry'); toggleSidebar();" class="${view === 'dues-entry' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> Dues Entry</a></li>
           <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
-          <li><a onclick="renderAdminDashboard('group-leaders'); toggleSidebar();" class="${view === 'group-leaders' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Group Leaders & Excos</a></li>
           <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
@@ -1493,46 +1523,42 @@ function renderAdminDashboard(view = "home") {
   `;
 }
 
-function filterAdminMemberDropdown(group) {
-  const select = document.getElementById("leader-member-phone");
-  const users = getUsers().filter(u => u.group === group);
+function filterMembersBySelectedGroup(groupKey) {
+  const memberSelect = document.getElementById("leader-member-select");
+  const users = getUsers().filter(u => u.group === groupKey);
 
   if (users.length === 0) {
-    select.innerHTML = `<option value="">-- No members in this fellowship --</option>`;
-    return;
+    memberSelect.innerHTML = `<option value="">No members found in ${groupKey.toUpperCase()} fellowship</option>`;
+  } else {
+    memberSelect.innerHTML = `<option value="">-- Select Member --</option>` + 
+      users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('');
   }
-
-  select.innerHTML = `<option value="">-- Select Member --</option>` + 
-    users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
 }
 
-function handleAssignGroupLeader(e) {
+function handleAppointGroupLeader(e) {
   e.preventDefault();
-  const group = document.getElementById("leader-group-select").value;
-  const phone = document.getElementById("leader-member-phone").value;
+  const groupKey = document.getElementById("leader-group-select").value;
+  const phone = document.getElementById("leader-member-select").value;
   const pin = document.getElementById("leader-7digit-pin").value.trim();
-  const handoverMoney = parseFloat(document.getElementById("leader-handover").value) || 0;
 
-  if (pin.length !== 7) {
-    alert("Leader PIN must be exactly 7 digits!");
+  if (pin.length !== 7 || isNaN(pin)) {
+    alert("Leader PIN must be exactly 7 numeric digits!");
     return;
   }
 
   let users = getUsers();
-  // Clear former leader for this group
+
   users.forEach(u => {
-    if (u.group === group) u.isGroupLeader = false;
+    if (u.group === groupKey) u.isGroupLeader = false;
   });
 
-  let newLeader = users.find(u => u.phone === phone);
-  if (newLeader) {
-    newLeader.isGroupLeader = true;
-    newLeader.leaderPin = pin;
-    newLeader.handoverMoney = handoverMoney;
+  let leader = users.find(u => u.phone === phone);
+  if (leader) {
+    leader.isGroupLeader = true;
+    leader.leaderPin = pin;
     saveUsers(users);
-
-    alert(`${newLeader.fullName} is now the Group Leader of ${group.toUpperCase()} Fellowship! Assigned 7-digit PIN: ${pin}`);
-    renderAdminDashboard("group-leaders");
+    alert(`${leader.fullName} appointed as ${groupKey.toUpperCase()} Group Leader with 7-Digit PIN set!`);
+    renderAdminDashboard("leaders");
   }
 }
 
@@ -1684,7 +1710,8 @@ function handleResetPin(e) {
 }
 
 function toggleSidebar() {
-  document.getElementById("admin-sidebar").classList.toggle("open");
+  const sidebar = document.getElementById("admin-sidebar");
+  sidebar.classList.toggle("open");
 }
 
 function editMember(phone) {
