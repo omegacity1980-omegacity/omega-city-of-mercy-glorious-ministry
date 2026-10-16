@@ -197,7 +197,7 @@ label {
   color: var(--text-muted);
 }
 
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 12px;
   background: #121212;
@@ -207,7 +207,7 @@ input, select {
   font-size: 0.9rem;
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--gold-primary);
 }
@@ -419,12 +419,21 @@ input:focus, select:focus {
 /* Admin Management Content Area */
 .admin-content-area {
   padding: 20px;
+  max-width: 900px;
 }
 
 .admin-content-area h3 {
   color: var(--gold-primary);
   margin-bottom: 15px;
   font-size: 1.1rem;
+}
+
+.admin-form-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
 .members-table {
@@ -599,6 +608,32 @@ input:focus, select:focus {
   justify-content: center;
   align-items: center;
   gap: 8px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.sound-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: #121212;
+  border-radius: 4px;
+  border: 1px solid var(--card-border);
+}
+
+.btn-sm-preview {
+  background: var(--gold-primary);
+  color: #000;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
 }
 
 @media (max-width: 768px) {
