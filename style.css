@@ -380,7 +380,7 @@ input:focus, select:focus {
 
 .admin-info span {
   display: block;
-  font-size: 0.8srem;
+  font-size: 0.8rem;
 }
 
 .admin-info .admin-phone {
@@ -446,6 +446,22 @@ input:focus, select:focus {
 .members-table th {
   background: #141414;
   color: var(--gold-primary);
+}
+
+.btn-action-group {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-sm-edit {
+  background: var(--gold-primary);
+  color: #000;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .btn-sm-danger {
