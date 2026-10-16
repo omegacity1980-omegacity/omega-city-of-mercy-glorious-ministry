@@ -1,113 +1,99 @@
-import React, { useState } from 'react';
-import TransactionForm from './components/TransactionForm';
-import TransactionList from './components/TransactionList';
+import React, { useState, useEffect } from 'react';
+import Dashboard from './Dashboard';
+import TransactionForm from './TransactionForm';
+import TransactionList from './TransactionList';
+import { supabase } from './supabaseClient';
 
 function App() {
-  const [showForm, setShowForm] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Add new transaction to state
-  const handleAddTransaction = (newTx) => {
-    setTransactions([newTx, ...transactions]);
-    setShowForm(false);
-  };
+  // Fetch transactions from Supabase database when app loads
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
-  // Calculate dynamic totals
-  const totalIncome = transactions
-    .filter((item) => item.type === 'income')
-    .reduce((acc, item) => acc + Number(item.amount || 0), 0);
+  async function fetchTransactions() {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false });
 
-  const totalExpenses = transactions
-    .filter((item) => item.type === 'expense')
-    .reduce((acc, item) => acc + Number(item.amount || 0), 0);
+      if (error) {
+        console.error('Error fetching transactions:', error);
+      } else {
+        setTransactions(data || []);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const netBalance = totalIncome - totalExpenses;
+  // Save a new transaction to Supabase database
+  async function handleAddTransaction(newTx) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([newTx])
+        .select();
+
+      if (error) {
+        console.error('Error adding transaction:', error);
+        alert('Failed to save transaction to database.');
+      } else if (data) {
+        setTransactions((prev) => [data[0], ...prev]);
+        setShowForm(false);
+      }
+    } catch (err) {
+      console.error('Unexpected error adding transaction:', err);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-4 space-y-6">
-      {/* App Header */}
-      <header className="max-w-md mx-auto bg-neutral-900 border border-amber-500/30 rounded-2xl p-6 shadow-xl text-center space-y-2">
-        <div className="inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-400 text-xs font-semibold uppercase tracking-wider">
-          Glorious Ministry
+    <div className="min-h-screen bg-neutral-950 text-white font-sans p-4 max-w-md mx-auto">
+      {/* Header */}
+      <header className="flex items-center justify-between py-4 border-b border-amber-500/20 mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-amber-500 tracking-wide">
+            OMEGA CITY OF MERCY
+          </h1>
+          <p className="text-xs text-neutral-400">Financial Management Dashboard</p>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-amber-400">
-          Omega City of Mercy
-        </h1>
-        <p className="text-xs text-neutral-400">
-          Financial Record & Administrative Portal
-        </p>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold px-3 py-1.5 rounded-lg text-sm transition-colors"
+        >
+          {showForm ? 'Close' : '+ Add'}
+        </button>
       </header>
 
-      {/* Main Dashboard Content */}
-      <main className="max-w-md mx-auto space-y-4">
-        {/* Financial Summary Cards */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex justify-between items-center shadow-md">
-          <div>
-            <p className="text-xs text-neutral-400">Total Income</p>
-            <p className="text-xl font-bold text-amber-400">
-              ₦{totalIncome.toLocaleString()}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
-            +
-          </div>
-        </div>
+      {/* Main Content */}
+      <main className="space-y-6">
+        {/* Dashboard Component */}
+        <Dashboard transactions={transactions} />
 
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex justify-between items-center shadow-md">
-          <div>
-            <p className="text-xs text-neutral-400">Total Expenses</p>
-            <p className="text-xl font-bold text-rose-400">
-              ₦{totalExpenses.toLocaleString()}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold">
-            -
-          </div>
-        </div>
-
-        <div className="bg-neutral-900 border border-amber-500/40 rounded-xl p-4 flex justify-between items-center shadow-lg bg-gradient-to-r from-neutral-900 via-neutral-900 to-amber-950/30">
-          <div>
-            <p className="text-xs text-amber-300 font-medium">Net Balance</p>
-            <p className="text-2xl font-extrabold text-amber-400">
-              ₦{netBalance.toLocaleString()}
-            </p>
-          </div>
-          <div className="text-amber-400 font-bold text-lg">
-            ₦
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        {!showForm && (
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button 
-              onClick={() => setShowForm(true)}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-bold rounded-xl shadow-md text-sm transition-all active:scale-95"
-            >
-              + Record Income
-            </button>
-            <button 
-              onClick={() => setShowForm(true)}
-              className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 font-bold rounded-xl shadow-md text-sm transition-all active:scale-95"
-            >
-              - Record Expense
-            </button>
-          </div>
-        )}
-
-        {/* Transaction Form Component */}
+        {/* Transaction Form Modal / Dropdown */}
         {showForm && (
           <div className="pt-2">
-            <TransactionForm 
+            <TransactionForm
               onAddTransaction={handleAddTransaction}
-              onClose={() => setShowForm(false)} 
+              onClose={() => setShowForm(false)}
             />
           </div>
         )}
 
         {/* Transaction List Component */}
         <div className="pt-2">
-          <TransactionList transactions={transactions} />
+          {loading ? (
+            <p className="text-center text-amber-500/80 text-sm py-4">Loading data from database...</p>
+          ) : (
+            <TransactionList transactions={transactions} />
+          )}
         </div>
       </main>
     </div>
@@ -115,4 +101,3 @@ function App() {
 }
 
 export default App;
-
