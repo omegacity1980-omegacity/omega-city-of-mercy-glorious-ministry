@@ -285,8 +285,8 @@ input:focus, select:focus, textarea:focus {
   border-radius: 6px;
 }
 
-/* ADMIN DASHBOARD LAYOUT */
-.admin-wrapper {
+/* ADMIN & MEMBER SIDEBAR LAYOUT */
+.admin-wrapper, .member-dashboard-wrapper {
   display: flex;
   flex-direction: column;
   width: 100vw;
@@ -302,7 +302,7 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
 }
 
-.admin-topbar {
+.admin-topbar, .member-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -322,7 +322,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 1rem;
 }
 
-.topbar-right {
+.topbar-right, .member-topbar-right {
   display: flex;
   align-items: center;
   gap: 15px;
@@ -333,7 +333,7 @@ input:focus, select:focus, textarea:focus {
   background: none;
   border: 1px solid var(--gold-primary);
   color: var(--gold-primary);
-  font-size: 1rem;
+  font-size: 0.9rem;
   padding: 5px 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -342,12 +342,12 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
 }
 
-/* Admin Sidebar Positioned from Left with Compact 200px Width */
-.admin-sidebar {
+/* Admin & Member Sidebars Positioned from Left */
+.admin-sidebar, .member-sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 200px;
+  width: 210px;
   height: 100vh;
   background: var(--card-bg);
   border-right: 1px solid var(--card-border);
@@ -359,7 +359,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 4px 0 15px rgba(0,0,0,0.5);
 }
 
-.admin-sidebar.open {
+.admin-sidebar.open, .member-sidebar.open {
   transform: translateX(0);
 }
 
@@ -430,61 +430,53 @@ input:focus, select:focus, textarea:focus {
   padding: 2px 5px;
 }
 
-.admin-profile {
+.admin-profile, .member-profile-section {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.admin-avatar {
-  width: 34px;
-  height: 34px;
+.admin-avatar, .member-avatar-img {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1px solid var(--gold-primary);
+  object-fit: cover;
 }
 
-.admin-info span {
-  display: block;
-  font-size: 0.8rem;
-}
-
-.cards-container {
+.cards-container, .member-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 15px;
   padding: 20px;
 }
 
-.summary-card {
+.summary-card, .m-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 8px;
   padding: 16px;
-  pointer-events: none;
+  text-align: center;
 }
 
-.summary-card h4 {
+.summary-card h4, .m-card h4 {
   font-size: 0.75rem;
   color: var(--text-muted);
   text-transform: uppercase;
   margin-bottom: 8px;
 }
 
-.summary-card p {
-  font-size: 1.3rem;
+.summary-card p, .m-card p {
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--gold-primary);
 }
 
-.admin-content-area {
+.admin-content-area, .member-content {
   padding: 20px;
   max-width: 900px;
-}
-
-.admin-content-area h3 {
-  color: var(--gold-primary);
-  margin-bottom: 15px;
-  font-size: 1.1rem;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .settings-card {
@@ -572,69 +564,6 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 8px;
 }
 
-/* Member Dashboard Styles */
-.member-dashboard-wrapper {
-  width: 100vw;
-  min-height: 100vh;
-  background: var(--bg-color);
-  display: flex;
-  flex-direction: column;
-}
-
-.member-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--card-border);
-}
-
-.member-profile-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.member-avatar-img {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  border: 2px solid var(--gold-primary);
-  object-fit: cover;
-}
-
-.member-profile-section h4 {
-  font-size: 0.95rem;
-  color: var(--text-color);
-}
-
-.member-id-tag, .member-phone-tag {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.member-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.btn-logout {
-  background: none;
-  border: none;
-  color: var(--danger);
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-
-.member-content {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
-}
-
 .welcome-banner {
   margin-bottom: 20px;
   text-align: center;
@@ -657,34 +586,6 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.85rem;
 }
 
-.member-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.m-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 8px;
-  padding: 14px;
-  text-align: center;
-}
-
-.m-card h4 {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.m-card p {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--gold-primary);
-}
-
 .read-only-notice {
   background: rgba(212, 175, 55, 0.05);
   border: 1px dashed var(--gold-primary);
@@ -697,4 +598,5 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  margin-top: 20px;
 }
