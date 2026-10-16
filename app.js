@@ -45,6 +45,10 @@ function renderAuthSelection() {
         <button onclick="renderLogin()" class="btn-primary">Member Login</button>
         <button onclick="renderRegistrationStep1()" class="btn-secondary">Register New Account</button>
         <button onclick="renderAdminLogin()" class="btn-admin-link">Main Admin Login</button>
+        
+        <a href="data:text/html;charset=utf-8,${encodeURIComponent('<h1>OMEGA CITY OF MERCY - MEMBER PORTAL</h1><p>Offline Installer Access</p>')}" download="Member_Portal.html" class="download-link">
+          <i class="fa-solid fa-download"></i> Download Member Login Page
+        </a>
       </div>
     </div>
   `;
@@ -348,6 +352,11 @@ function renderAdminLogin() {
           <input type="password" id="admin-pin" maxlength="8" required placeholder="********" />
         </div>
         <button type="submit" class="btn-primary">Access Admin Portal</button>
+        
+        <a href="data:text/html;charset=utf-8,${encodeURIComponent('<h1>OMEGA CITY OF MERCY - MAIN ADMIN PORTAL</h1><p>Separate Downloadable Login</p>')}" download="Main_Admin_Portal.html" class="download-link">
+          <i class="fa-solid fa-download"></i> Download Separate Admin Login
+        </a>
+
         <button type="button" onclick="renderAuthSelection()" class="btn-text">Back to Home</button>
       </form>
     </div>
@@ -365,7 +374,6 @@ function renderAdminDashboard(view = "home") {
   
   let mainContentHtml = "";
 
-  // Financial Calculations for Non-Clickable Cards
   const tithes = getFinancialRecords("omega_tithes");
   const offerings = getFinancialRecords("omega_offerings");
   const expenses = getFinancialRecords("omega_expenses");
@@ -392,6 +400,69 @@ function renderAdminDashboard(view = "home") {
           <p>₦${balance.toLocaleString()}</p>
         </div>
       </section>
+    `;
+  } else if (view === "settings") {
+    const users = getUsers();
+    let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Settings & Administrative Controls</h3>
+
+        <!-- Change Theme -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-palette"></i> Change Theme</h4>
+          <select onchange="changeTheme(this.value)">
+            <option value="dark">Professional Dark Gold (Default)</option>
+            <option value="light">Professional Light</option>
+          </select>
+        </div>
+
+        <!-- Notification Sound Preview & Setup -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-volume-high"></i> Notification Sounds</h4>
+          ${[1,2,3,4,5,6,7,8,9,10].map(i => `
+            <div class="sound-item">
+              <span>Notification Sound ${i}</span>
+              <button class="btn-sm-edit" onclick="previewAudioSound(${i})"><i class="fa-solid fa-play"></i> Preview</button>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- PIN Resets -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-key"></i> Reset Member / Leader / Exco PIN</h4>
+          <form onsubmit="handleResetPin(event)">
+            <label>Select User</label>
+            <select id="reset-user-phone" required>
+              <option value="">-- Select User --</option>
+              ${userOptions}
+            </select>
+            <label>New PIN</label>
+            <input type="password" id="reset-new-pin" placeholder="Enter new PIN" required />
+            <button type="submit" class="btn-primary">Update PIN</button>
+          </form>
+        </div>
+
+        <!-- Assign Posts and Roles -->
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-user-shield"></i> Assign Post & Roles</h4>
+          <form onsubmit="handleAssignRole(event)">
+            <label>Select Member</label>
+            <select id="role-user-phone" required>
+              <option value="">-- Select Member --</option>
+              ${userOptions}
+            </select>
+            <label>Assign Role</label>
+            <select id="assigned-role" required>
+              <option value="leader">Group Leader</option>
+              <option value="exco">Executive (Exco)</option>
+              <option value="member">Regular Member</option>
+            </select>
+            <button type="submit" class="btn-primary">Save Role</button>
+          </form>
+        </div>
+      </div>
     `;
   } else if (["tithe", "offering", "church-expenses"].includes(view)) {
     const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : "omega_expenses";
@@ -439,7 +510,7 @@ function renderAdminDashboard(view = "home") {
     else if (view === "women") filteredUsers = users.filter(u => u.group === "women");
     else if (view === "youth") filteredUsers = users.filter(u => u.group === "youth");
     else if (view === "workforce") filteredUsers = users.filter(u => u.isWorker);
-    else if (view === "leaders") filteredUsers = users.filter(u => u.isLeader);
+    else if (view === "leaders") filteredUsers = users.filter(u => u.role === "leader" || u.role === "exco");
 
     let rows = filteredUsers.map((u, index) => `
       <tr>
@@ -447,7 +518,7 @@ function renderAdminDashboard(view = "home") {
         <td>${u.fullName}</td>
         <td>${u.phone}</td>
         <td>${u.group.toUpperCase()}</td>
-        <td>${u.isWorker ? 'Yes' : 'No'}</td>
+        <td>${u.role ? u.role.toUpperCase() : 'MEMBER'}</td>
         <td>
           <div class="btn-action-group">
             <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
@@ -467,7 +538,7 @@ function renderAdminDashboard(view = "home") {
               <th>Full Name</th>
               <th>Phone</th>
               <th>Group</th>
-              <th>Worker</th>
+              <th>Role</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -475,13 +546,6 @@ function renderAdminDashboard(view = "home") {
             ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
           </tbody>
         </table>
-      </div>
-    `;
-  } else {
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>${view.toUpperCase()} Settings</h3>
-        <p>Admin configuration options are available here.</p>
       </div>
     `;
   }
@@ -549,6 +613,55 @@ function addFinancialEntry(e, key, viewType) {
 
   alert(`${viewType.toUpperCase()} record added successfully!`);
   renderAdminDashboard(viewType);
+}
+
+function changeTheme(theme) {
+  const body = document.getElementById("app-body");
+  if (theme === "light") {
+    body.className = "theme-light";
+  } else {
+    body.className = "theme-dark";
+  }
+}
+
+function previewAudioSound(id) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440 + id * 50, ctx.currentTime);
+  osc.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.3);
+}
+
+function handleResetPin(e) {
+  e.preventDefault();
+  const phone = document.getElementById("reset-user-phone").value;
+  const newPin = document.getElementById("reset-new-pin").value.trim();
+
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (user) {
+    user.pin = newPin;
+    saveUsers(users);
+    alert("PIN reset successfully!");
+    renderAdminDashboard("settings");
+  }
+}
+
+function handleAssignRole(e) {
+  e.preventDefault();
+  const phone = document.getElementById("role-user-phone").value;
+  const role = document.getElementById("assigned-role").value;
+
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (user) {
+    user.role = role;
+    saveUsers(users);
+    alert(`Role updated to ${role.toUpperCase()} successfully!`);
+    renderAdminDashboard("settings");
+  }
 }
 
 function toggleSidebar() {
