@@ -1,13 +1,46 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Omega City of Mercy</title>
-  </head>
-  <body class="bg-slate-900 text-slate-100 antialiased">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Omega City Of Mercy - Financial Record</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#121212" />
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body class="theme-dark">
+
+  <!-- 6-SECOND LOADING SCREEN -->
+  <div id="loading-screen" class="splash-screen">
+    <div class="splash-content">
+      <h1 class="church-title">OMEGA CITY OF MERCY FINANCIAL RECORD</h1>
+      
+      <!-- Logo Container with Rolling Arrows & Pen Writing Book Animation -->
+      <div class="animation-container">
+        <div class="rolling-arrows"></div>
+        <div class="logo-box">
+          <i class="fa-solid fa-book-open book-icon"></i>
+          <i class="fa-solid fa-pen-nib pen-icon"></i>
+        </div>
+      </div>
+
+      <p class="slogan">Keeping financial records transparent.</p>
+
+      <!-- 6-Second Progress Bar -->
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <div id="app" class="hidden">
+    <!-- VIEW CONTAINER (Login, Registration, Dashboards render here) -->
+    <div id="view-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
 </html>
