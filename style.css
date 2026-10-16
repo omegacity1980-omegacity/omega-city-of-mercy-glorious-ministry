@@ -342,7 +342,7 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
 }
 
-/* Admin Sidebar Positioned from Left with Compact Width */
+/* Admin Sidebar Positioned from Left with Compact 200px Width */
 .admin-sidebar {
   position: fixed;
   top: 0;
@@ -405,6 +405,11 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-color);
   color: var(--gold-primary);
   border-left: 3px solid var(--gold-primary);
+}
+
+.sub-menu-item {
+  padding-left: 28px !important;
+  font-size: 0.75rem !important;
 }
 
 .notification-bell {
