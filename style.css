@@ -444,30 +444,39 @@ input:focus, select:focus, textarea:focus {
   object-fit: cover;
 }
 
-.cards-container, .member-card-grid {
+.cards-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 15px;
   padding: 20px;
 }
 
+/* STRICT 2-COLUMN SIDE-BY-SIDE GRID FOR MEMBER DASHBOARD CARDS */
+.member-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
 .summary-card, .m-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 8px;
-  padding: 16px;
+  padding: 14px;
   text-align: center;
 }
 
 .summary-card h4, .m-card h4 {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
 }
 
 .summary-card p, .m-card p {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--gold-primary);
 }
@@ -570,20 +579,20 @@ input:focus, select:focus, textarea:focus {
 }
 
 .welcome-banner h2 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--gold-primary);
   margin-bottom: 6px;
 }
 
 .slogan-text {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-style: italic;
 }
 
 .workforce-badge {
   color: var(--success);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .read-only-notice {
