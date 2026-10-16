@@ -1,0 +1,21 @@
+{
+  "short_name": "Omega Financials",
+  "name": "Omega City Of Mercy Financial Record",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192.png?text=OCM",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512.png?text=OCM",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "display": "standalone",
+  "orientation": "portrait"
+}
