@@ -1071,6 +1071,10 @@ function renderAdminLogin() {
 
 function handleAdminLogin(e) {
   e.preventDefault();
+  const phone = document.getElementById("admin-phone").value.trim();
+  const pin = document.getElementById("admin-pin").value.trim();
+
+  // Fast redirect to Admin Dashboard
   renderAdminDashboard();
 }
 
@@ -1080,43 +1084,47 @@ function renderAdminDashboard(view = "home") {
   
   let mainContentHtml = "";
 
-  const tithes = getFinancialRecords("omega_tithes");
-  const offerings = getFinancialRecords("omega_offerings");
-  const churchExpenses = getFinancialRecords("omega_expenses");
-  const groupExpenses = getFinancialRecords("omega_group_expenses");
   const duesPayments = getFinancialRecords("omega_dues_payments");
-  const projectContributions = getFinancialRecords("omega_projects");
-
-  const totalTithes = tithes.reduce((sum, item) => sum + Number(item.amount), 0);
-  const totalOfferings = offerings.reduce((sum, item) => sum + Number(item.amount), 0);
+  const groupExpenses = getFinancialRecords("omega_group_expenses");
   const totalDues = duesPayments.reduce((sum, item) => sum + Number(item.amount), 0);
-  const totalProjects = projectContributions.reduce((sum, item) => sum + Number(item.amount), 0);
-  
-  const totalChurchExpenses = churchExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
   const totalGroupExpenses = groupExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
 
-  const totalInflow = totalTithes + totalOfferings + totalDues + totalProjects;
-  const totalExpenses = totalChurchExpenses + totalGroupExpenses;
-  const balance = totalInflow - totalExpenses;
+  // Group Inflow & Handover from transactions or localstorage settings
+  const transactions = getFinancialRecords("omega_transactions");
+  const totalInflow = transactions.filter(t => t.type === 'inflow').reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalHandover = transactions.filter(t => t.type === 'handover').reduce((sum, item) => sum + Number(item.amount), 0);
+
+  // Formula: Total Group Balance = Total Dues + Total Inflow + Total Handover - Total Expenses
+  const totalGroupBalance = totalDues + totalInflow + totalHandover - totalGroupExpenses;
 
   if (view === "home") {
     mainContentHtml = `
       <section class="cards-container">
-        <div class="summary-card">
-          <h4>Total Group Inflow</h4>
-          <p>₦${totalInflow.toLocaleString()}</p>
-        </div>
-        <div class="summary-card">
-          <h4>Total Group Expenses</h4>
-          <p>₦${totalExpenses.toLocaleString()}</p>
-        </div>
-        <div class="summary-card">
-          <h4>Total Dues Collected</h4>
-          <p>₦${totalDues.toLocaleString()}</p>
-        </div>
-        <div class="summary-card">
+        <!-- Highlighted Full-Width Total Group Balance Card -->
+        <div class="balance-card-full">
           <h4>Total Group Balance</h4>
-          <p>₦${balance.toLocaleString()}</p>
+          <p>₦${totalGroupBalance.toLocaleString()}</p>
+          <small>(Dues + Inflow + Handover - Expenses)</small>
+        </div>
+
+        <!-- 2 by 2 Professional Grid Cards -->
+        <div class="admin-cards-grid-2x2">
+          <div class="summary-card">
+            <h4>Total Group Dues</h4>
+            <p>₦${totalDues.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>Total Group Inflow</h4>
+            <p style="color: var(--success);">₦${totalInflow.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>Total Group Handover</h4>
+            <p style="color: #9333ea;">₦${totalHandover.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>Total Group Expenses</h4>
+            <p style="color: var(--danger);">₦${totalGroupExpenses.toLocaleString()}</p>
+          </div>
         </div>
       </section>
     `;
