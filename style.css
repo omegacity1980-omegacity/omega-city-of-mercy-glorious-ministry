@@ -1,4 +1,4 @@
-/* Dark Gold Theme - Inspired by Design */
+/* Dark Gold Theme - Default */
 :root {
   --bg-color: #0d0d0d;
   --card-bg: #1a1a1a;
@@ -10,6 +10,17 @@
   --gold-hover: #b89528;
   --danger: #e63946;
   --success: #38b000;
+}
+
+/* Light Theme Variant */
+body.theme-light {
+  --bg-color: #f4f6f9;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-color: #1a202c;
+  --text-muted: #718096;
+  --gold-primary: #b8860b;
+  --gold-glow: rgba(184, 134, 11, 0.2);
 }
 
 * {
@@ -24,6 +35,7 @@ body {
   color: var(--text-color);
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .hidden {
@@ -200,10 +212,10 @@ label {
 input, select, textarea {
   width: 100%;
   padding: 12px;
-  background: #121212;
+  background: var(--bg-color);
   border: 1px solid var(--card-border);
   border-radius: 6px;
-  color: #fff;
+  color: var(--text-color);
   font-size: 0.9rem;
 }
 
@@ -259,8 +271,22 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
-/* ADMIN DASHBOARD LAYOUT */
-.admin-wrapper {
+.download-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--gold-primary);
+  text-decoration: none;
+  padding: 8px;
+  border: 1px dashed var(--gold-primary);
+  border-radius: 6px;
+}
+
+/* ADMIN & MEMBER SIDEBAR LAYOUT */
+.admin-wrapper, .member-dashboard-wrapper {
   display: flex;
   flex-direction: column;
   width: 100vw;
@@ -276,57 +302,63 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
 }
 
-.admin-topbar {
+.admin-topbar, .member-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 12px 16px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--card-border);
 }
 
-.topbar-left h3 {
-  color: var(--gold-primary);
-  font-size: 1rem;
-}
-
-.topbar-right {
+.topbar-left {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
 }
 
-.toggle-btn-topright {
+.topbar-left h3 {
+  color: var(--gold-primary);
+  font-size: 0.95rem;
+}
+
+.topbar-right, .member-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-btn-topleft {
   background: none;
   border: 1px solid var(--gold-primary);
   color: var(--gold-primary);
-  font-size: 1.1rem;
-  padding: 6px 10px;
+  font-size: 0.85rem;
+  padding: 5px 8px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
-/* Admin Sidebar Positioned from Right */
-.admin-sidebar {
+/* Sidebars */
+.admin-sidebar, .member-sidebar {
   position: fixed;
   top: 0;
-  right: 0;
-  width: 240px;
+  left: 0;
+  width: 220px;
   height: 100vh;
-  background: #141414;
-  border-left: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-right: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translateX(-100%);
   transition: transform 0.3s ease;
   z-index: 1000;
-  box-shadow: -4px 0 15px rgba(0,0,0,0.5);
+  box-shadow: 4px 0 15px rgba(0,0,0,0.5);
 }
 
-.admin-sidebar.open {
+.admin-sidebar.open, .member-sidebar.open {
   transform: translateX(0);
 }
 
@@ -334,9 +366,9 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
+  padding: 14px;
   border-bottom: 1px solid var(--card-border);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: bold;
   color: var(--gold-primary);
 }
@@ -345,13 +377,13 @@ input:focus, select:focus, textarea:focus {
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
 }
 
 .sidebar-menu {
   list-style: none;
-  padding: 10px 0;
+  padding: 8px 0;
   flex: 1;
   overflow-y: auto;
 }
@@ -359,19 +391,24 @@ input:focus, select:focus, textarea:focus {
 .sidebar-menu li a {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 10px 14px;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   transition: 0.2s;
   cursor: pointer;
 }
 
 .sidebar-menu li a:hover, .sidebar-menu li a.active {
-  background: var(--card-bg);
+  background: var(--bg-color);
   color: var(--gold-primary);
-  border-right: 3px solid var(--gold-primary);
+  border-left: 3px solid var(--gold-primary);
+}
+
+.sub-menu-item {
+  padding-left: 28px !important;
+  font-size: 0.75rem !important;
 }
 
 .notification-bell {
@@ -392,66 +429,104 @@ input:focus, select:focus, textarea:focus {
   padding: 2px 5px;
 }
 
-.admin-profile {
+.admin-profile, .member-profile-section {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.admin-avatar {
-  width: 34px;
-  height: 34px;
+.admin-avatar, .member-avatar-img {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1px solid var(--gold-primary);
-}
-
-.admin-info span {
-  display: block;
-  font-size: 0.8rem;
-}
-
-.admin-info .admin-phone {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  object-fit: cover;
 }
 
 .cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 15px;
   padding: 20px;
 }
 
-.summary-card {
+/* STRICT 2-COLUMN GRID (2 SIDE-BY-SIDE) */
+.member-card-grid, .two-col-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.summary-card, .m-card, .leader-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 8px;
-  padding: 16px;
-  pointer-events: none;
+  padding: 14px;
+  text-align: left;
 }
 
-.summary-card h4 {
-  font-size: 0.75rem;
+.summary-card h4, .m-card h4, .leader-card h4 {
+  font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
 }
 
-.summary-card p {
-  font-size: 1.3rem;
+.summary-card p, .m-card p {
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--gold-primary);
 }
 
-.admin-content-area {
-  padding: 20px;
-  max-width: 900px;
+.leader-card h3 {
+  color: var(--gold-primary);
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 4px;
 }
 
-.admin-content-area h3 {
+.leader-info-item {
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+  color: var(--text-color);
+}
+
+.exco-list {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--card-border);
+}
+
+.exco-item {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.admin-content-area, .member-content {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.settings-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.settings-card h4 {
   color: var(--gold-primary);
-  margin-bottom: 15px;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 8px;
 }
 
 .members-table {
@@ -471,8 +546,34 @@ input:focus, select:focus, textarea:focus {
 }
 
 .members-table th {
-  background: #141414;
+  background: var(--bg-color);
   color: var(--gold-primary);
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.badge.paid { background: rgba(56, 176, 0, 0.15); color: var(--success); border: 1px solid var(--success); }
+.badge.partial { background: rgba(212, 175, 55, 0.15); color: var(--gold-primary); border: 1px solid var(--gold-primary); }
+.badge.unpaid { background: rgba(230, 57, 70, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+
+.btn-group-leader-badge {
+  background: var(--gold-primary);
+  color: #000;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 0 10px var(--gold-glow);
 }
 
 .btn-action-group {
@@ -501,67 +602,15 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.75rem;
 }
 
-/* Member Dashboard Styles */
-.member-dashboard-wrapper {
-  width: 100vw;
-  min-height: 100vh;
-  background: var(--bg-color);
-  display: flex;
-  flex-direction: column;
-}
-
-.member-topbar {
+.sound-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--card-border);
-}
-
-.member-profile-section {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.member-avatar-img {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  border: 2px solid var(--gold-primary);
-  object-fit: cover;
-}
-
-.member-profile-section h4 {
-  font-size: 0.95rem;
-  color: #fff;
-}
-
-.member-id-tag, .member-phone-tag {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.member-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.btn-logout {
-  background: none;
-  border: none;
-  color: var(--danger);
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-
-.member-content {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
+  padding: 10px;
+  background: var(--bg-color);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  margin-bottom: 8px;
 }
 
 .welcome-banner {
@@ -570,48 +619,20 @@ input:focus, select:focus, textarea:focus {
 }
 
 .welcome-banner h2 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--gold-primary);
   margin-bottom: 6px;
 }
 
 .slogan-text {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-style: italic;
 }
 
 .workforce-badge {
   color: var(--success);
-  font-size: 0.85rem;
-}
-
-.member-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.m-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 8px;
-  padding: 14px;
-  text-align: center;
-}
-
-.m-card h4 {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.m-card p {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--gold-primary);
+  font-size: 0.8rem;
 }
 
 .read-only-notice {
@@ -626,4 +647,41 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  margin-top: 20px;
+}
+
+/* Modal Styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 15px;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border: 1px solid var(--gold-primary);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 10px;
+}
+
+.modal-header h3 {
+  color: var(--gold-primary);
+  font-size: 1rem;
 }
