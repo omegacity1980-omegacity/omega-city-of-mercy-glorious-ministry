@@ -443,11 +443,54 @@ input:focus, select:focus, textarea:focus {
   object-fit: cover;
 }
 
+/* ADMIN DASHBOARD 2x2 GRID & BALANCE CARD STYLING */
 .cards-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.balance-card-full {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.balance-card-full h4 {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.balance-card-full p {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin: 4px 0;
+}
+
+.balance-card-full small {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.admin-cards-grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media(max-width: 600px) {
+  .admin-cards-grid-2x2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* STRICT 2-COLUMN GRID (2 SIDE-BY-SIDE) */
