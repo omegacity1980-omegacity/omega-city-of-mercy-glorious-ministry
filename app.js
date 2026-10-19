@@ -22,10 +22,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 6000);
 
-  // Silent Background Auto-Refresh
+  // Silent Background Auto-Refresh (Safe State Preservation)
   setInterval(() => {
     performSilentAutoRefresh();
   }, 3000);
+
+  // Global Listener to Close Sidebar when clicking outside
+  document.addEventListener("click", (e) => {
+    const sidebar = document.getElementById("admin-sidebar");
+    const memberSidebar = document.getElementById("member-sidebar");
+    const leaderSidebar = document.getElementById("leader-sidebar");
+
+    [sidebar, memberSidebar, leaderSidebar].forEach(sb => {
+      if (sb && sb.classList.contains("open")) {
+        // Check if click is outside sidebar and not on a toggle button
+        const toggleBtn = e.target.closest('.toggle-btn-topleft');
+        if (!sb.contains(e.target) && !toggleBtn) {
+          sb.classList.remove("open");
+          const overlay = document.getElementById("sidebar-backdrop");
+          if (overlay) overlay.remove();
+        }
+      }
+    });
+  });
 });
 
 // Database Helpers
@@ -193,7 +212,7 @@ function calculateGroupFinancials(groupKey) {
   };
 }
 
-// Silent Auto Refresh Engine
+// Silent Auto Refresh Engine (Preserves active view state safely during pull-to-refresh)
 function performSilentAutoRefresh() {
   if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
     return;
@@ -201,20 +220,9 @@ function performSilentAutoRefresh() {
   if (document.querySelector('.modal-overlay')) {
     return;
   }
-
-  if (currentActiveState.type === 'member' && currentActiveState.user) {
-    const updatedUser = getUsers().find(u => u.phone === currentActiveState.user.phone);
-    if (updatedUser) {
-      currentActiveState.user = updatedUser;
-      routeUserDashboard(updatedUser, currentActiveState.view, true);
-    }
-  } else if (currentActiveState.type === 'admin') {
-    renderAdminDashboard(currentActiveState.view, true);
-  } else if (currentActiveState.type === 'leader' && currentActiveState.user) {
-    const updatedLeader = getUsers().find(u => u.phone === currentActiveState.user.phone);
-    if (updatedLeader) {
-      renderGroupLeaderDashboard(updatedLeader, currentActiveState.view, true);
-    }
+  // Do not disrupt user if they have the sidebar open
+  if (document.querySelector('.admin-sidebar.open') || document.querySelector('.member-sidebar.open')) {
+    return;
   }
 }
 
@@ -755,7 +763,28 @@ function handleAdminLogin(e) {
   renderAdminDashboard();
 }
 
-// Dynamic Sidebar Toggles
+// Dynamic Sidebar Toggles & Backdrop Handler
+function toggleSidebar() {
+  const sidebar = document.getElementById("admin-sidebar");
+  sidebar.classList.toggle("open");
+
+  let backdrop = document.getElementById("sidebar-backdrop");
+  if (sidebar.classList.contains("open")) {
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "sidebar-backdrop";
+      backdrop.className = "sidebar-backdrop-overlay";
+      backdrop.onclick = () => {
+        sidebar.classList.remove("open");
+        backdrop.remove();
+      };
+      document.body.appendChild(backdrop);
+    }
+  } else {
+    if (backdrop) backdrop.remove();
+  }
+}
+
 function toggleSubMenu(menuId) {
   const el = document.getElementById(menuId);
   if (el) {
@@ -1221,9 +1250,9 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
           
-          <!-- WORKFORCE MAIN CATEGORY -->
+          <!-- WORKFORCE CATEGORY -->
           <li>
-            <a onclick="toggleSubMenu('workforce-sub-menu')"><i class="fa-solid fa-briefcase"></i> Workforce <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <a onclick="toggleSubMenu('workforce-sub-menu')"><span class="menu-item-left"><i class="fa-solid fa-briefcase"></i> Workforce</span> <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
             <ul id="workforce-sub-menu" class="sub-menu-list ${['workforce', 'dept-sanitation', 'dept-security', 'dept-usher', 'dept-technical', 'dept-children', 'dept-minister', 'dept-choir'].includes(view) ? '' : 'hidden'}">
               <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="sub-menu-item ${view === 'workforce' ? 'active' : ''}">All Workforce</a></li>
               <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}">Sanitation</a></li>
@@ -1236,9 +1265,9 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
             </ul>
           </li>
 
-          <!-- CHURCH MAIN CATEGORY -->
+          <!-- CHURCH CATEGORY -->
           <li>
-            <a onclick="toggleSubMenu('church-sub-menu')"><i class="fa-solid fa-church"></i> Church <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <a onclick="toggleSubMenu('church-sub-menu')"><span class="menu-item-left"><i class="fa-solid fa-church"></i> Church</span> <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
             <ul id="church-sub-menu" class="sub-menu-list ${['offering', 'tithe', 'seed', 'building-offering', 'church-expenses'].includes(view) ? '' : 'hidden'}">
               <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="sub-menu-item ${view === 'offering' ? 'active' : ''}">Offering</a></li>
               <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="sub-menu-item ${view === 'tithe' ? 'active' : ''}">Tithe</a></li>
@@ -1248,9 +1277,9 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
             </ul>
           </li>
 
-          <!-- GROUPS MAIN CATEGORY -->
+          <!-- GROUPS CATEGORY -->
           <li>
-            <a onclick="toggleSubMenu('groups-sub-menu')"><i class="fa-solid fa-people-group"></i> Groups <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <a onclick="toggleSubMenu('groups-sub-menu')"><span class="menu-item-left"><i class="fa-solid fa-people-group"></i> Groups</span> <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
             <ul id="groups-sub-menu" class="sub-menu-list ${['men', 'women', 'youth'].includes(view) ? '' : 'hidden'}">
               <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="sub-menu-item ${view === 'men' ? 'active' : ''}">Men Fellowship</a></li>
               <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="sub-menu-item ${view === 'women' ? 'active' : ''}">Women Fellowship</a></li>
@@ -1425,11 +1454,6 @@ function handleResetPin(e) {
     alert("PIN reset successfully!");
     renderAdminDashboard("settings");
   }
-}
-
-function toggleSidebar() {
-  const sidebar = document.getElementById("admin-sidebar");
-  sidebar.classList.toggle("open");
 }
 
 function editMember(phone) {
