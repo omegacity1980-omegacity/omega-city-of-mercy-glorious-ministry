@@ -148,7 +148,13 @@ function calculateMemberProjects(phone) {
 
 function calculateGroupFinancials(groupKey) {
   const users = getUsers();
-  let groupMembers = groupKey === "workforce" ? users.filter(u => u.isWorker) : users.filter(u => u.group === groupKey);
+  let groupMembers = [];
+
+  if (groupKey === "workforce") {
+    groupMembers = users.filter(u => u.isWorker);
+  } else {
+    groupMembers = users.filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase());
+  }
 
   const duesPayments = getFinancialRecords("omega_dues_payments");
   const duesPaid = duesPayments
@@ -162,7 +168,7 @@ function calculateGroupFinancials(groupKey) {
 
   const groupExpensesRecords = getFinancialRecords("omega_group_expenses");
   const expenses = groupExpensesRecords
-    .filter(e => e.group === groupKey)
+    .filter(e => e.group && e.group.toLowerCase() === groupKey.toLowerCase())
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
   let duesArrears = 0;
@@ -841,7 +847,7 @@ function handleLeaderPinReset(e, phone) {
 function renderGroupLeaderDashboard(leader, view = 'members', isAutoRefresh = false) {
   currentActiveState = { type: 'leader', view: view, user: leader };
   const container = document.getElementById("view-container");
-  const users = getUsers().filter(u => u.group === leader.group);
+  const users = getUsers().filter(u => u.group && u.group.toLowerCase() === leader.group.toLowerCase());
 
   let leaderContentHtml = "";
 
@@ -978,7 +984,7 @@ function generateGroupMembersTable(usersList) {
 
 function filterGroupMembersTable(groupKey) {
   const query = document.getElementById("leader-member-search").value.toLowerCase();
-  const users = getUsers().filter(u => u.group === groupKey && u.fullName.toLowerCase().includes(query));
+  const users = getUsers().filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase() && u.fullName.toLowerCase().includes(query));
   document.getElementById("group-members-table-container").innerHTML = generateGroupMembersTable(users);
 }
 
@@ -999,7 +1005,6 @@ function handleAssignExcoByLeader(e, leaderPhone) {
     member.excoRole = roleName;
     saveUsers(users);
 
-    // Send direct Exco appointment notification to target member's dashboard
     let userNotifs = getFinancialRecords(`omega_notifications_${targetPhone}`);
     userNotifs.unshift({
       title: "Exco Appointment Notice",
@@ -1037,7 +1042,7 @@ function renderExcoPortalView(user) {
             <label>Select Group Member</label>
             <select id="exco-entry-member" required>
               <option value="">-- Select Member --</option>
-              ${getUsers().filter(u => u.group === user.group).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
+              ${getUsers().filter(u => u.group && u.group.toLowerCase() === user.group.toLowerCase()).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
             </select>
 
             <label>${role === "Dues Collector" ? 'Member Dues Amount (₦)' : 'Levy Amount (₦)'}</label>
@@ -1057,7 +1062,7 @@ function renderExcoPortalView(user) {
             <label>Select Member</label>
             <select id="att-member-phone" required>
               <option value="">-- Select Member --</option>
-              ${getUsers().filter(u => u.group === user.group).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
+              ${getUsers().filter(u => u.group && u.group.toLowerCase() === user.group.toLowerCase()).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
             </select>
 
             <label>Service Date</label>
@@ -1296,8 +1301,8 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
     const groups = ["men", "women", "youth"];
 
     let leadersGridHtml = groups.map(grpKey => {
-      let leader = users.find(u => u.group === grpKey && u.isGroupLeader);
-      let excos = users.filter(u => u.group === grpKey && u.excoRole);
+      let leader = users.find(u => u.group && u.group.toLowerCase() === grpKey && u.isGroupLeader);
+      let excos = users.filter(u => u.group && u.group.toLowerCase() === grpKey && u.excoRole);
 
       return `
         <div class="leader-card">
@@ -1353,19 +1358,19 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
     const users = getUsers();
     let filteredUsers = users;
 
-    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department === "Sanitation");
-    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department === "Technical");
-    else if (view === "dept-security") filteredUsers = users.filter(u => u.department === "Security");
-    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department === "Choir");
-    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department === "Usher");
-    else if (view === "dept-children") filteredUsers = users.filter(u => u.department === "Children class");
+    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "sanitation");
+    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "technical");
+    else if (view === "dept-security") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "security");
+    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "choir");
+    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "usher");
+    else if (view === "dept-children") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "children class");
 
     let rows = filteredUsers.map((u, index) => `
       <tr>
         <td>${index + 1}</td>
         <td>${u.fullName}</td>
         <td>${u.phone}</td>
-        <td>${u.group.toUpperCase()}</td>
+        <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
         <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
         <td>
           <div class="btn-action-group">
@@ -1659,7 +1664,7 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
 
 function filterMembersBySelectedGroup(groupKey) {
   const memberSelect = document.getElementById("leader-member-select");
-  const users = getUsers().filter(u => u.group === groupKey);
+  const users = getUsers().filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase());
 
   if (users.length === 0) {
     memberSelect.innerHTML = `<option value="">No members found in ${groupKey.toUpperCase()} fellowship</option>`;
@@ -1683,7 +1688,7 @@ function handleAppointGroupLeader(e) {
   let users = getUsers();
 
   users.forEach(u => {
-    if (u.group === groupKey) u.isGroupLeader = false;
+    if (u.group && u.group.toLowerCase() === groupKey.toLowerCase()) u.isGroupLeader = false;
   });
 
   let leader = users.find(u => u.phone === phone);
@@ -1693,7 +1698,6 @@ function handleAppointGroupLeader(e) {
     leader.hasCustomLeaderPin = false;
     saveUsers(users);
 
-    // 1. Send direct notification to member's personal dashboard inbox
     let userNotifs = getFinancialRecords(`omega_notifications_${phone}`);
     userNotifs.unshift({
       title: "Group Admin Appointment",
@@ -1702,7 +1706,6 @@ function handleAppointGroupLeader(e) {
     });
     saveFinancialRecords(`omega_notifications_${phone}`, userNotifs);
 
-    // 2. Also send broadcast record to group array
     let groupNotifs = getFinancialRecords(`omega_notifications_${groupKey}`);
     groupNotifs.unshift({
       title: "Group Admin Appointment",
