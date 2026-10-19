@@ -35,7 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     [sidebar, memberSidebar, leaderSidebar].forEach(sb => {
       if (sb && sb.classList.contains("open")) {
-        // Check if click is outside sidebar and not on a toggle button
         const toggleBtn = e.target.closest('.toggle-btn-topleft');
         if (!sb.contains(e.target) && !toggleBtn) {
           sb.classList.remove("open");
@@ -212,7 +211,6 @@ function calculateGroupFinancials(groupKey) {
   };
 }
 
-// Silent Auto Refresh Engine (Preserves active view state safely during pull-to-refresh)
 function performSilentAutoRefresh() {
   if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
     return;
@@ -220,7 +218,6 @@ function performSilentAutoRefresh() {
   if (document.querySelector('.modal-overlay')) {
     return;
   }
-  // Do not disrupt user if they have the sidebar open
   if (document.querySelector('.admin-sidebar.open') || document.querySelector('.member-sidebar.open')) {
     return;
   }
@@ -713,22 +710,22 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
           <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'attendance'); toggleMemberSidebar();" class="${view === 'attendance' ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> Attendance Record</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-house"></i> Dashboard</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-diagram-project"></i> View Project Levy</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'attendance'); toggleMemberSidebar();" class="${view === 'attendance' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-calendar-check"></i> Attendance Record</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</span></a></li>
           
           ${isExco ? `
             <li>
               <a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'exco-role'); toggleMemberSidebar();" class="${view === 'exco-role' ? 'active' : ''}" style="color:var(--gold-primary);">
-                <i class="fa-solid fa-user-gear"></i> My Exco Portal (${latestUser.excoRole})
+                <span class="menu-item-left"><i class="fa-solid fa-user-gear"></i> My Exco Portal (${latestUser.excoRole})</span>
               </a>
             </li>
           ` : ''}
 
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
-          <li><a onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-gear"></i> Settings</span></a></li>
+          <li><a onclick="logout()"><span class="menu-item-left"><i class="fa-solid fa-right-from-bracket"></i> Logout</span></a></li>
         </ul>
       </aside>
     </div>
@@ -763,7 +760,6 @@ function handleAdminLogin(e) {
   renderAdminDashboard();
 }
 
-// Dynamic Sidebar Toggles & Backdrop Handler
 function toggleSidebar() {
   const sidebar = document.getElementById("admin-sidebar");
   sidebar.classList.toggle("open");
@@ -1248,11 +1244,14 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
           <button class="close-sidebar-btn" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
-          <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+          <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-chart-line"></i> Dashboard</span></a></li>
           
           <!-- WORKFORCE CATEGORY -->
           <li>
-            <a onclick="toggleSubMenu('workforce-sub-menu')"><span class="menu-item-left"><i class="fa-solid fa-briefcase"></i> Workforce</span> <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <a onclick="toggleSubMenu('workforce-sub-menu')">
+              <span class="menu-item-left"><i class="fa-solid fa-briefcase"></i> Workforce</span>
+              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+            </a>
             <ul id="workforce-sub-menu" class="sub-menu-list ${['workforce', 'dept-sanitation', 'dept-security', 'dept-usher', 'dept-technical', 'dept-children', 'dept-minister', 'dept-choir'].includes(view) ? '' : 'hidden'}">
               <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="sub-menu-item ${view === 'workforce' ? 'active' : ''}">All Workforce</a></li>
               <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}">Sanitation</a></li>
@@ -1267,7 +1266,10 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
 
           <!-- CHURCH CATEGORY -->
           <li>
-            <a onclick="toggleSubMenu('church-sub-menu')"><span class="menu-item-left"><i class="fa-solid fa-church"></i> Church</span> <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <a onclick="toggleSubMenu('church-sub-menu')">
+              <span class="menu-item-left"><i class="fa-solid fa-church"></i> Church</span>
+              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+            </a>
             <ul id="church-sub-menu" class="sub-menu-list ${['offering', 'tithe', 'seed', 'building-offering', 'church-expenses'].includes(view) ? '' : 'hidden'}">
               <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="sub-menu-item ${view === 'offering' ? 'active' : ''}">Offering</a></li>
               <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="sub-menu-item ${view === 'tithe' ? 'active' : ''}">Tithe</a></li>
@@ -1279,7 +1281,10 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
 
           <!-- GROUPS CATEGORY -->
           <li>
-            <a onclick="toggleSubMenu('groups-sub-menu')"><span class="menu-item-left"><i class="fa-solid fa-people-group"></i> Groups</span> <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <a onclick="toggleSubMenu('groups-sub-menu')">
+              <span class="menu-item-left"><i class="fa-solid fa-people-group"></i> Groups</span>
+              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+            </a>
             <ul id="groups-sub-menu" class="sub-menu-list ${['men', 'women', 'youth'].includes(view) ? '' : 'hidden'}">
               <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="sub-menu-item ${view === 'men' ? 'active' : ''}">Men Fellowship</a></li>
               <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="sub-menu-item ${view === 'women' ? 'active' : ''}">Women Fellowship</a></li>
@@ -1287,12 +1292,12 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
             </ul>
           </li>
 
-          <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Assign Group Leaders</a></li>
-          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
-          <li><a onclick="renderAdminDashboard('group-expenses'); toggleSidebar();" class="${view === 'group-expenses' ? 'active' : ''}"><i class="fa-solid fa-receipt"></i> Group Expenses</a></li>
-          <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View All Members</a></li>
-          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
-          <li><a onclick="renderAuthSelection()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+          <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-user-shield"></i> Assign Group Leaders</span></a></li>
+          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-diagram-project"></i> Group Projects</span></a></li>
+          <li><a onclick="renderAdminDashboard('group-expenses'); toggleSidebar();" class="${view === 'group-expenses' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-receipt"></i> Group Expenses</span></a></li>
+          <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-users"></i> View All Members</span></a></li>
+          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-gear"></i> Settings</span></a></li>
+          <li><a onclick="renderAuthSelection()"><span class="menu-item-left"><i class="fa-solid fa-right-from-bracket"></i> Logout</span></a></li>
         </ul>
       </aside>
     </div>
