@@ -42,122 +42,6 @@ body {
   display: none !important;
 }
 
-/* Splash Screen */
-.splash-screen {
-  position: fixed;
-  inset: 0;
-  background-color: var(--bg-color);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  padding: 20px;
-  text-align: center;
-}
-
-.splash-content {
-  width: 100%;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.church-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--gold-primary);
-  letter-spacing: 1px;
-  margin-bottom: 30px;
-  text-transform: uppercase;
-}
-
-.animation-container {
-  position: relative;
-  width: 110px;
-  height: 110px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 25px;
-}
-
-.rolling-arrows {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 3px solid transparent;
-  border-top-color: var(--gold-primary);
-  border-right-color: var(--gold-primary);
-  border-radius: 50%;
-  animation: spin 1.5s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.logo-box {
-  position: relative;
-  width: 65px;
-  height: 65px;
-  background: var(--card-bg);
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 1px solid var(--gold-primary);
-  box-shadow: 0 0 15px var(--gold-glow);
-}
-
-.book-icon {
-  font-size: 1.6rem;
-  color: var(--gold-primary);
-}
-
-.pen-icon {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  font-size: 1rem;
-  color: #ffffff;
-  animation: write 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes write {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(-4px, 4px) rotate(-10deg); }
-}
-
-.slogan {
-  font-size: 0.85rem;
-  font-style: italic;
-  color: var(--text-muted);
-  margin-bottom: 35px;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 4px;
-  background: var(--card-border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  width: 0%;
-  height: 100%;
-  background: var(--gold-primary);
-  box-shadow: 0 0 8px var(--gold-primary);
-  animation: fillProgress 6s linear forwards;
-}
-
-@keyframes fillProgress {
-  0% { width: 0%; }
-  100% { width: 100%; }
-}
-
 /* Auth Cards & Forms */
 #app {
   display: flex;
@@ -247,6 +131,21 @@ input:focus, select:focus, textarea:focus {
   border-radius: 6px;
   cursor: pointer;
   margin-top: 8px;
+}
+
+.btn-group-admin {
+  background: var(--success);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 0 10px rgba(56, 176, 0, 0.4);
 }
 
 .btn-admin-link {
@@ -346,7 +245,7 @@ input:focus, select:focus, textarea:focus {
   position: fixed;
   top: 0;
   left: 0;
-  width: 220px;
+  width: 230px;
   height: 100vh;
   background: var(--card-bg);
   border-right: 1px solid var(--card-border);
@@ -503,6 +402,7 @@ input:focus, select:focus, textarea:focus {
   flex-direction: column;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  cursor: pointer;
 }
 
 .summary-card h4 {
@@ -632,21 +532,6 @@ input:focus, select:focus, textarea:focus {
 .badge.paid { background: rgba(56, 176, 0, 0.15); color: var(--success); border: 1px solid var(--success); }
 .badge.partial { background: rgba(212, 175, 55, 0.15); color: var(--gold-primary); border: 1px solid var(--gold-primary); }
 .badge.unpaid { background: rgba(230, 57, 70, 0.15); color: var(--danger); border: 1px solid var(--danger); }
-
-.btn-group-leader-badge {
-  background: var(--gold-primary);
-  color: #000;
-  font-weight: 700;
-  font-size: 0.75rem;
-  padding: 6px 10px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  box-shadow: 0 0 10px var(--gold-glow);
-}
 
 .btn-action-group {
   display: flex;
