@@ -3,7 +3,7 @@ let currentActiveState = { type: 'guest', view: 'home', user: null };
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
-  // 6-Second Splash / Loading Screen Timer
+  // Splash / Loading Screen Timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 6000);
 
-  // Silent Background Auto-Refresh Every 3 Seconds (3000ms)
+  // Silent Background Auto-Refresh
   setInterval(() => {
     performSilentAutoRefresh();
   }, 3000);
@@ -277,7 +277,7 @@ function handleLogin(e) {
   routeUserDashboard(user, 'home');
 }
 
-// MEMBER REGISTRATION FUNNEL - STEP 1
+// MEMBER REGISTRATION FUNNEL
 function renderRegistrationStep1() {
   currentActiveState = { type: 'guest', view: 'reg1', user: null };
   const container = document.getElementById("view-container");
@@ -328,7 +328,6 @@ function handleRegStep1(e) {
   renderRegistrationStep2();
 }
 
-// MEMBER REGISTRATION FUNNEL - STEP 2
 function renderRegistrationStep2() {
   currentActiveState = { type: 'guest', view: 'reg2', user: null };
   const container = document.getElementById("view-container");
@@ -364,11 +363,12 @@ function renderRegistrationStep2() {
           <select id="reg-dept">
             <option value="">-- Select Department --</option>
             <option value="Sanitation">Sanitation</option>
-            <option value="Technical">Technical</option>
             <option value="Security">Security</option>
-            <option value="Choir">Choir</option>
             <option value="Usher">Usher</option>
+            <option value="Technical">Tech Dept</option>
             <option value="Children class">Children class</option>
+            <option value="Minister">Minister</option>
+            <option value="Choir">Choir</option>
           </select>
         </div>
 
@@ -431,7 +431,6 @@ function handleRegStep2(e) {
   renderRegistrationStep3();
 }
 
-// MEMBER REGISTRATION FUNNEL - STEP 3
 function renderRegistrationStep3() {
   currentActiveState = { type: 'guest', view: 'reg3', user: null };
   const container = document.getElementById("view-container");
@@ -728,428 +727,6 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
   `;
 }
 
-// GROUP LEADER LOGIN MODAL & VERIFICATION
-function openGroupLeaderPinModal(phone) {
-  const leader = getUsers().find(u => u.phone === phone);
-
-  if (leader.hasCustomLeaderPin) {
-    const modalHtml = `
-      <div class="modal-overlay" id="leader-login-modal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Enter Group Admin PIN</h3>
-            <button onclick="document.getElementById('leader-login-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-          <form onsubmit="handleLeaderCustomPinLogin(event, '${phone}')">
-            <label>7-Digit Admin PIN</label>
-            <input type="password" id="custom-leader-pin-input" maxlength="7" minlength="7" required placeholder="*******" />
-            <button type="submit" class="btn-primary">Access Leader Portal</button>
-          </form>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    return;
-  }
-
-  const modalHtml = `
-    <div class="modal-overlay" id="leader-temp-modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Verify Temporary Leader PIN</h3>
-          <button onclick="document.getElementById('leader-temp-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <form onsubmit="verifyTempLeaderPin(event, '${phone}')">
-          <label>Enter 7-Digit Temporary PIN (Check Notifications)</label>
-          <input type="password" id="temp-leader-pin-input" maxlength="7" minlength="7" required placeholder="*******" />
-          <button type="submit" class="btn-primary">Verify PIN</button>
-        </form>
-      </div>
-    </div>
-  `;
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-function handleLeaderCustomPinLogin(e, phone) {
-  e.preventDefault();
-  const inputPin = document.getElementById("custom-leader-pin-input").value.trim();
-  const leader = getUsers().find(u => u.phone === phone);
-
-  if (leader && inputPin === leader.leaderPin) {
-    document.getElementById("leader-login-modal").remove();
-    renderGroupLeaderDashboard(leader, 'members');
-  } else {
-    alert("Incorrect 7-Digit Group Admin PIN!");
-  }
-}
-
-function verifyTempLeaderPin(e, phone) {
-  e.preventDefault();
-  const tempPinInput = document.getElementById("temp-leader-pin-input").value.trim();
-  const leader = getUsers().find(u => u.phone === phone);
-
-  if (leader && tempPinInput === leader.tempLeaderPin) {
-    document.getElementById("leader-temp-modal").remove();
-    
-    const resetModalHtml = `
-      <div class="modal-overlay" id="pin-reset-modal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Set Your New 7-Digit Group Admin PIN</h3>
-          </div>
-          <form onsubmit="handleLeaderPinReset(event, '${phone}')">
-            <label>Enter New 7-Digit PIN</label>
-            <input type="password" id="new-leader-pin" maxlength="7" minlength="7" required placeholder="*******" />
-
-            <label>Confirm New 7-Digit PIN</label>
-            <input type="password" id="confirm-leader-pin" maxlength="7" minlength="7" required placeholder="*******" />
-
-            <button type="submit" class="btn-primary">Save New PIN & Continue</button>
-          </form>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', resetModalHtml);
-  } else {
-    alert("Incorrect Temporary PIN! Please check your Notifications tab.");
-  }
-}
-
-function handleLeaderPinReset(e, phone) {
-  e.preventDefault();
-  const p1 = document.getElementById("new-leader-pin").value.trim();
-  const p2 = document.getElementById("confirm-leader-pin").value.trim();
-
-  if (p1 !== p2) {
-    alert("PINs do not match!");
-    return;
-  }
-  if (p1.length !== 7 || isNaN(p1)) {
-    alert("PIN must be exactly 7 digits!");
-    return;
-  }
-
-  let users = getUsers();
-  let leader = users.find(u => u.phone === phone);
-  if (leader) {
-    leader.leaderPin = p1;
-    delete leader.tempLeaderPin;
-    leader.hasCustomLeaderPin = true;
-    saveUsers(users);
-
-    document.getElementById("pin-reset-modal").remove();
-    alert("New 7-Digit PIN created successfully! Temporary PIN is now invalidated.");
-    renderGroupLeaderDashboard(leader, 'members');
-  }
-}
-
-// GROUP LEADER DASHBOARD
-function renderGroupLeaderDashboard(leader, view = 'members', isAutoRefresh = false) {
-  currentActiveState = { type: 'leader', view: view, user: leader };
-  const container = document.getElementById("view-container");
-  const users = getUsers().filter(u => u.group && u.group.toLowerCase() === leader.group.toLowerCase());
-
-  let leaderContentHtml = "";
-
-  if (view === 'members') {
-    leaderContentHtml = `
-      <div class="admin-content-area" style="padding:0;">
-        <h3>${leader.group.toUpperCase()} Fellowship Members</h3>
-        <div class="settings-card">
-          <input type="text" id="leader-member-search" placeholder="Search members in ${leader.group.toUpperCase()}..." oninput="filterGroupMembersTable('${leader.group}')" />
-        </div>
-
-        <div id="group-members-table-container">
-          ${generateGroupMembersTable(users)}
-        </div>
-      </div>
-    `;
-  } else if (view === 'assign-excos') {
-    const existingExcos = users.filter(u => u.excoRole);
-
-    leaderContentHtml = `
-      <div class="admin-content-area" style="padding:0;">
-        <h3>Assign Fellowship Executive (Excos)</h3>
-        
-        <div class="settings-card">
-          <form onsubmit="handleAssignExcoByLeader(event, '${leader.phone}')">
-            <label>Search & Select Member</label>
-            <select id="leader-exco-member" required>
-              <option value="">-- Select Member --</option>
-              ${users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
-            </select>
-
-            <label>Assign Exco Role</label>
-            <select id="leader-exco-role" required>
-              <option value="">-- Select Role --</option>
-              <option value="Dues Collector">Dues Collector (Enter Member Dues)</option>
-              <option value="Levy Collector">Levy Collector</option>
-              <option value="Post Levy">Post Levy</option>
-              <option value="Record Levy Paid">Record Levy Paid</option>
-              <option value="Attendance Taker">Attendance Taker</option>
-            </select>
-
-            <button type="submit" class="btn-primary">Appoint Exco</button>
-          </form>
-        </div>
-
-        <h3>Currently Appointed Excos</h3>
-        <table class="members-table">
-          <thead>
-            <tr>
-              <th>Member Name</th>
-              <th>Phone</th>
-              <th>Assigned Role</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${existingExcos.map(e => `
-              <tr>
-                <td>${e.fullName}</td>
-                <td>${e.phone}</td>
-                <td><span class="badge paid">${e.excoRole}</span></td>
-                <td><button onclick="removeExcoRole('${e.phone}', '${leader.phone}')" class="btn-sm-danger">Remove</button></td>
-              </tr>
-            `).join('') || '<tr><td colspan="4" style="text-align:center;">No excos assigned yet.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  const isSidebarOpen = document.getElementById("leader-sidebar")?.classList.contains("open");
-
-  container.innerHTML = `
-    <div class="admin-wrapper">
-      <main class="admin-main">
-        <header class="admin-topbar">
-          <div class="topbar-left">
-            <button class="toggle-btn-topleft" onclick="toggleLeaderSidebar()">
-              <i class="fa-solid fa-bars"></i> Menu
-            </button>
-            <h3>${leader.group.toUpperCase()} LEADER PORTAL</h3>
-          </div>
-          <div class="topbar-right">
-            <button onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')" class="btn-logout"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-        </header>
-
-        <div style="padding:20px;">
-          ${leaderContentHtml}
-        </div>
-      </main>
-
-      <aside class="admin-sidebar ${isSidebarOpen ? 'open' : ''}" id="leader-sidebar">
-        <div class="sidebar-header">
-          <span>LEADER MENU</span>
-          <button class="close-sidebar-btn" onclick="toggleLeaderSidebar()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <ul class="sidebar-menu">
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'members'); toggleLeaderSidebar();" class="${view === 'members' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View Members</a></li>
-          <li><a onclick="renderGroupLeaderDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'assign-excos'); toggleLeaderSidebar();" class="${view === 'assign-excos' ? 'active' : ''}"><i class="fa-solid fa-user-plus"></i> Assign Excos</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${leader.phone}'), 'home')"><i class="fa-solid fa-arrow-left"></i> Exit Leader Portal</a></li>
-        </ul>
-      </aside>
-    </div>
-  `;
-}
-
-function generateGroupMembersTable(usersList) {
-  return `
-    <table class="members-table">
-      <thead>
-        <tr>
-          <th>S/N</th>
-          <th>Full Name</th>
-          <th>Phone</th>
-          <th>WhatsApp</th>
-          <th>Exco Role</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${usersList.map((u, i) => `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${u.fullName}</td>
-            <td>${u.phone}</td>
-            <td>${u.whatsapp || u.phone}</td>
-            <td>${u.excoRole ? `<span class="badge paid">${u.excoRole}</span>` : 'Member'}</td>
-          </tr>
-        `).join('') || '<tr><td colspan="5" style="text-align:center;">No members found.</td></tr>'}
-      </tbody>
-    </table>
-  `;
-}
-
-function filterGroupMembersTable(groupKey) {
-  const query = document.getElementById("leader-member-search").value.toLowerCase();
-  const users = getUsers().filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase() && u.fullName.toLowerCase().includes(query));
-  document.getElementById("group-members-table-container").innerHTML = generateGroupMembersTable(users);
-}
-
-function toggleLeaderSidebar() {
-  const sidebar = document.getElementById("leader-sidebar");
-  sidebar.classList.toggle("open");
-}
-
-function handleAssignExcoByLeader(e, leaderPhone) {
-  e.preventDefault();
-  const targetPhone = document.getElementById("leader-exco-member").value;
-  const roleName = document.getElementById("leader-exco-role").value;
-
-  let users = getUsers();
-  let member = users.find(u => u.phone === targetPhone);
-
-  if (member) {
-    member.excoRole = roleName;
-    saveUsers(users);
-
-    let userNotifs = getFinancialRecords(`omega_notifications_${targetPhone}`);
-    userNotifs.unshift({
-      title: "Exco Appointment Notice",
-      message: `You have been appointed as ${roleName} for your fellowship. You now have access to your Exco Portal.`,
-      date: new Date().toLocaleString()
-    });
-    saveFinancialRecords(`omega_notifications_${targetPhone}`, userNotifs);
-
-    alert(`${member.fullName} appointed as ${roleName}!`);
-    renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'assign-excos');
-  }
-}
-
-function removeExcoRole(phone, leaderPhone) {
-  let users = getUsers();
-  let member = users.find(u => u.phone === phone);
-  if (member) {
-    delete member.excoRole;
-    saveUsers(users);
-    alert("Exco role removed.");
-    renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'assign-excos');
-  }
-}
-
-// EXCO SPECIFIC PORTAL VIEW
-function renderExcoPortalView(user) {
-  const role = user.excoRole;
-
-  if (role === "Dues Collector" || role === "Record Levy Paid" || role === "Post Levy" || role === "Levy Collector") {
-    return `
-      <div class="admin-content-area" style="padding:0;">
-        <h3>Exco Portal - ${role}</h3>
-        <div class="settings-card">
-          <form onsubmit="handleExcoPaymentEntry(event, '${user.phone}', '${role}')">
-            <label>Select Group Member</label>
-            <select id="exco-entry-member" required>
-              <option value="">-- Select Member --</option>
-              ${getUsers().filter(u => u.group && u.group.toLowerCase() === user.group.toLowerCase()).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
-            </select>
-
-            <label>${role === "Dues Collector" ? 'Member Dues Amount (₦)' : 'Levy Amount (₦)'}</label>
-            <input type="number" id="exco-entry-amount" required placeholder="5000" min="1" />
-
-            <button type="submit" class="btn-primary">Record Payment Entry</button>
-          </form>
-        </div>
-      </div>
-    `;
-  } else if (role === "Attendance Taker") {
-    return `
-      <div class="admin-content-area" style="padding:0;">
-        <h3>Exco Portal - Attendance Taker</h3>
-        <div class="settings-card">
-          <form onsubmit="handleExcoMarkAttendance(event, '${user.group}')">
-            <label>Select Member</label>
-            <select id="att-member-phone" required>
-              <option value="">-- Select Member --</option>
-              ${getUsers().filter(u => u.group && u.group.toLowerCase() === user.group.toLowerCase()).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
-            </select>
-
-            <label>Service Date</label>
-            <input type="date" id="att-date" required />
-
-            <button type="submit" class="btn-primary">Mark Member Present</button>
-          </form>
-        </div>
-      </div>
-    `;
-  }
-  return `<p>Role assigned: ${role}</p>`;
-}
-
-function handleExcoPaymentEntry(e, excoPhone, role) {
-  e.preventDefault();
-  const phone = document.getElementById("exco-entry-member").value;
-  const amount = parseFloat(document.getElementById("exco-entry-amount").value);
-
-  if (role === "Dues Collector") {
-    const payments = getFinancialRecords("omega_dues_payments");
-    payments.push({
-      id: "TXN-" + Date.now(),
-      memberPhone: phone,
-      amount: amount,
-      paymentDate: new Date().toISOString().split('T')[0],
-      recordedBy: `Group Exco (${excoPhone})`
-    });
-    saveFinancialRecords("omega_dues_payments", payments);
-  } else {
-    const projects = getFinancialRecords("omega_projects");
-    const member = getUsers().find(u => u.phone === phone);
-    projects.push({
-      memberPhone: phone,
-      memberName: member ? member.fullName : "Unknown",
-      projectName: "Group Levy",
-      amount: amount,
-      date: new Date().toISOString().split('T')[0]
-    });
-    saveFinancialRecords("omega_projects", projects);
-  }
-
-  alert("Payment recorded successfully!");
-}
-
-function handleExcoMarkAttendance(e, group) {
-  e.preventDefault();
-  const phone = document.getElementById("att-member-phone").value;
-  const date = document.getElementById("att-date").value;
-
-  const records = getFinancialRecords(`omega_attendance_${phone}`);
-  records.push({ date, serviceName: "Sunday Service" });
-  saveFinancialRecords(`omega_attendance_${phone}`, records);
-
-  alert("Attendance marked successfully!");
-}
-
-function viewNotificationDetail(index, phone) {
-  const records = getFinancialRecords(`omega_notifications_${phone}`);
-  const notif = records[index];
-  if (!notif) return;
-
-  const modalHtml = `
-    <div class="modal-overlay" id="notif-modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>${notif.title}</h3>
-          <button onclick="document.getElementById('notif-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px;">${notif.date}</p>
-        <p style="font-size:0.9rem; line-height:1.4;">${notif.message}</p>
-      </div>
-    </div>
-  `;
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-function toggleMemberSidebar() {
-  const sidebar = document.getElementById("member-sidebar");
-  sidebar.classList.toggle("open");
-}
-
-function logout() {
-  localStorage.removeItem("omega_current_user");
-  renderAuthSelection();
-}
-
 // MAIN ADMIN LOGIN & DASHBOARD
 function renderAdminLogin() {
   currentActiveState = { type: 'guest', view: 'admin-login', user: null };
@@ -1176,6 +753,14 @@ function renderAdminLogin() {
 function handleAdminLogin(e) {
   e.preventDefault();
   renderAdminDashboard();
+}
+
+// Dynamic Sidebar Toggles
+function toggleSubMenu(menuId) {
+  const el = document.getElementById(menuId);
+  if (el) {
+    el.classList.toggle("hidden");
+  }
 }
 
 // FULL ADMIN DASHBOARD
@@ -1296,6 +881,93 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </table>
       </div>
     `;
+  } else if (["all", "dept-sanitation", "dept-security", "dept-usher", "dept-technical", "dept-children", "dept-minister", "dept-choir"].includes(view)) {
+    const users = getUsers();
+    let filteredUsers = users;
+
+    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "sanitation");
+    else if (view === "dept-security") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "security");
+    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "usher");
+    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "technical");
+    else if (view === "dept-children") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "children class");
+    else if (view === "dept-minister") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "minister");
+    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "choir");
+
+    let rows = filteredUsers.map((u, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${u.fullName}</td>
+        <td>${u.phone}</td>
+        <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>${view.toUpperCase().replace('DEPT-', 'WORKFORCE: ')} View</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Group</th>
+              <th>Department</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (["offering", "tithe", "seed", "building-offering", "church-expenses"].includes(view)) {
+    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : view === "seed" ? "omega_seeds" : view === "building-offering" ? "omega_building_offerings" : "omega_expenses";
+    const currentRecords = getFinancialRecords(recordKey);
+
+    let rows = currentRecords.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.title || r.member || 'General'}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record New ${view.toUpperCase().replace('-', ' ')}</h3>
+        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
+          <input type="text" id="fin-title" placeholder="Description / Member Name" required />
+          <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
+          <input type="date" id="fin-date" required />
+          <button type="submit" class="btn-primary">Add Record</button>
+        </form>
+
+        <h3>${view.toUpperCase().replace('-', ' ')} History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Description / Member</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
   } else if (view === "leaders") {
     const users = getUsers();
     const groups = ["men", "women", "youth"];
@@ -1354,49 +1026,58 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </div>
       </div>
     `;
-  } else if (["all", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
+  } else if (view === "projects") {
     const users = getUsers();
-    let filteredUsers = users;
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+    const projects = getFinancialRecords("omega_projects");
 
-    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "sanitation");
-    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "technical");
-    else if (view === "dept-security") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "security");
-    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "choir");
-    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "usher");
-    else if (view === "dept-children") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "children class");
-
-    let rows = filteredUsers.map((u, index) => `
+    let rows = projects.map((p, index) => `
       <tr>
         <td>${index + 1}</td>
-        <td>${u.fullName}</td>
-        <td>${u.phone}</td>
-        <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
-        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
-        <td>
-          <div class="btn-action-group">
-            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
-            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
-          </div>
-        </td>
+        <td>${p.date}</td>
+        <td>${p.memberName}</td>
+        <td>${p.projectName}</td>
+        <td>₦${Number(p.amount).toLocaleString()}</td>
       </tr>
     `).join("");
 
     mainContentHtml = `
       <div class="admin-content-area">
-        <h3>${view.toUpperCase().replace('DEPT-', 'DEPARTMENT: ')} View</h3>
+        <h3>Record Group / Building Project Contribution</h3>
+        <div class="settings-card">
+          <form onsubmit="handleProjectEntry(event)">
+            <label>Select Member</label>
+            <select id="proj-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Project / Levy Title</label>
+            <input type="text" id="proj-title" placeholder="e.g. Building Project / Men Annual Levy" required />
+
+            <label>Contribution Amount (₦)</label>
+            <input type="number" id="proj-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="proj-date" required />
+
+            <button type="submit" class="btn-primary">Record Contribution</button>
+          </form>
+        </div>
+
+        <h3>Project Contribution History</h3>
         <table class="members-table">
           <thead>
             <tr>
               <th>S/N</th>
-              <th>Full Name</th>
-              <th>Phone</th>
-              <th>Group</th>
-              <th>Department / Worker</th>
-              <th>Action</th>
+              <th>Date</th>
+              <th>Member</th>
+              <th>Project</th>
+              <th>Amount</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No project records found.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -1457,62 +1138,6 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </table>
       </div>
     `;
-  } else if (view === "projects") {
-    const users = getUsers();
-    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
-    const projects = getFinancialRecords("omega_projects");
-
-    let rows = projects.map((p, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${p.date}</td>
-        <td>${p.memberName}</td>
-        <td>${p.projectName}</td>
-        <td>₦${Number(p.amount).toLocaleString()}</td>
-      </tr>
-    `).join("");
-
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>Record Group / Building Project Contribution</h3>
-        <div class="settings-card">
-          <form onsubmit="handleProjectEntry(event)">
-            <label>Select Member</label>
-            <select id="proj-member-phone" required>
-              <option value="">-- Select Member --</option>
-              ${memberOptions}
-            </select>
-
-            <label>Project / Levy Title</label>
-            <input type="text" id="proj-title" placeholder="e.g. Building Project / Men Annual Levy" required />
-
-            <label>Contribution Amount (₦)</label>
-            <input type="number" id="proj-amount" min="1" required placeholder="5000" />
-
-            <label>Date</label>
-            <input type="date" id="proj-date" required />
-
-            <button type="submit" class="btn-primary">Record Contribution</button>
-          </form>
-        </div>
-
-        <h3>Project Contribution History</h3>
-        <table class="members-table">
-          <thead>
-            <tr>
-              <th>S/N</th>
-              <th>Date</th>
-              <th>Member</th>
-              <th>Project</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || '<tr><td colspan="5" style="text-align:center;">No project records found.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    `;
   } else if (view === "settings") {
     const users = getUsers();
     let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
@@ -1557,45 +1182,6 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </div>
       </div>
     `;
-  } else if (["tithe", "offering", "church-expenses"].includes(view)) {
-    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : "omega_expenses";
-    const currentRecords = getFinancialRecords(recordKey);
-
-    let rows = currentRecords.map((r, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${r.date}</td>
-        <td>${r.title || r.member || 'General'}</td>
-        <td>₦${Number(r.amount).toLocaleString()}</td>
-      </tr>
-    `).join("");
-
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>Record New ${view.toUpperCase()}</h3>
-        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
-          <input type="text" id="fin-title" placeholder="Description / Member Name" required />
-          <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
-          <input type="date" id="fin-date" required />
-          <button type="submit" class="btn-primary">Add ${view.toUpperCase()}</button>
-        </form>
-
-        <h3>${view.toUpperCase()} Records History</h3>
-        <table class="members-table">
-          <thead>
-            <tr>
-              <th>S/N</th>
-              <th>Date</th>
-              <th>Description / Member</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || '<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    `;
   }
 
   const isSidebarOpen = document.getElementById("admin-sidebar")?.classList.contains("open");
@@ -1634,24 +1220,46 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </div>
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+          
+          <!-- WORKFORCE MAIN CATEGORY -->
+          <li>
+            <a onclick="toggleSubMenu('workforce-sub-menu')"><i class="fa-solid fa-briefcase"></i> Workforce <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <ul id="workforce-sub-menu" class="sub-menu-list ${['workforce', 'dept-sanitation', 'dept-security', 'dept-usher', 'dept-technical', 'dept-children', 'dept-minister', 'dept-choir'].includes(view) ? '' : 'hidden'}">
+              <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="sub-menu-item ${view === 'workforce' ? 'active' : ''}">All Workforce</a></li>
+              <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}">Sanitation</a></li>
+              <li><a onclick="renderAdminDashboard('dept-security'); toggleSidebar();" class="sub-menu-item ${view === 'dept-security' ? 'active' : ''}">Security</a></li>
+              <li><a onclick="renderAdminDashboard('dept-usher'); toggleSidebar();" class="sub-menu-item ${view === 'dept-usher' ? 'active' : ''}">Usher</a></li>
+              <li><a onclick="renderAdminDashboard('dept-technical'); toggleSidebar();" class="sub-menu-item ${view === 'dept-technical' ? 'active' : ''}">Tech Dept</a></li>
+              <li><a onclick="renderAdminDashboard('dept-children'); toggleSidebar();" class="sub-menu-item ${view === 'dept-children' ? 'active' : ''}">Children Class</a></li>
+              <li><a onclick="renderAdminDashboard('dept-minister'); toggleSidebar();" class="sub-menu-item ${view === 'dept-minister' ? 'active' : ''}">Minister</a></li>
+              <li><a onclick="renderAdminDashboard('dept-choir'); toggleSidebar();" class="sub-menu-item ${view === 'dept-choir' ? 'active' : ''}">Choir</a></li>
+            </ul>
+          </li>
+
+          <!-- CHURCH MAIN CATEGORY -->
+          <li>
+            <a onclick="toggleSubMenu('church-sub-menu')"><i class="fa-solid fa-church"></i> Church <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <ul id="church-sub-menu" class="sub-menu-list ${['offering', 'tithe', 'seed', 'building-offering', 'church-expenses'].includes(view) ? '' : 'hidden'}">
+              <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="sub-menu-item ${view === 'offering' ? 'active' : ''}">Offering</a></li>
+              <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="sub-menu-item ${view === 'tithe' ? 'active' : ''}">Tithe</a></li>
+              <li><a onclick="renderAdminDashboard('seed'); toggleSidebar();" class="sub-menu-item ${view === 'seed' ? 'active' : ''}">Seed</a></li>
+              <li><a onclick="renderAdminDashboard('building-offering'); toggleSidebar();" class="sub-menu-item ${view === 'building-offering' ? 'active' : ''}">Building Offering</a></li>
+              <li><a onclick="renderAdminDashboard('church-expenses'); toggleSidebar();" class="sub-menu-item ${view === 'church-expenses' ? 'active' : ''}">Church Expenses</a></li>
+            </ul>
+          </li>
+
+          <!-- GROUPS MAIN CATEGORY -->
+          <li>
+            <a onclick="toggleSubMenu('groups-sub-menu')"><i class="fa-solid fa-people-group"></i> Groups <i class="fa-solid fa-chevron-down dropdown-arrow"></i></a>
+            <ul id="groups-sub-menu" class="sub-menu-list ${['men', 'women', 'youth'].includes(view) ? '' : 'hidden'}">
+              <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="sub-menu-item ${view === 'men' ? 'active' : ''}">Men Fellowship</a></li>
+              <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="sub-menu-item ${view === 'women' ? 'active' : ''}">Women Fellowship</a></li>
+              <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="sub-menu-item ${view === 'youth' ? 'active' : ''}">Youth Fellowship</a></li>
+            </ul>
+          </li>
+
           <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Assign Group Leaders</a></li>
           <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
-          <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
-          <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
-          <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
-          
-          <!-- Workforce & Departments -->
-          <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="${view === 'workforce' ? 'active' : ''}"><i class="fa-solid fa-briefcase"></i> Workforce (All)</a></li>
-          <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}"><i class="fa-solid fa-broom"></i> Sanitation</a></li>
-          <li><a onclick="renderAdminDashboard('dept-technical'); toggleSidebar();" class="sub-menu-item ${view === 'dept-technical' ? 'active' : ''}"><i class="fa-solid fa-gears"></i> Technical</a></li>
-          <li><a onclick="renderAdminDashboard('dept-security'); toggleSidebar();" class="sub-menu-item ${view === 'dept-security' ? 'active' : ''}"><i class="fa-solid fa-shield-halved"></i> Security</a></li>
-          <li><a onclick="renderAdminDashboard('dept-choir'); toggleSidebar();" class="sub-menu-item ${view === 'dept-choir' ? 'active' : ''}"><i class="fa-solid fa-music"></i> Choir</a></li>
-          <li><a onclick="renderAdminDashboard('dept-usher'); toggleSidebar();" class="sub-menu-item ${view === 'dept-usher' ? 'active' : ''}"><i class="fa-solid fa-user-check"></i> Usher</a></li>
-          <li><a onclick="renderAdminDashboard('dept-children'); toggleSidebar();" class="sub-menu-item ${view === 'dept-children' ? 'active' : ''}"><i class="fa-solid fa-children"></i> Children class</a></li>
-
-          <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="${view === 'tithe' ? 'active' : ''}"><i class="fa-solid fa-coins"></i> Tithe</a></li>
-          <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="${view === 'offering' ? 'active' : ''}"><i class="fa-solid fa-hand-holding-dollar"></i> Offering</a></li>
-          <li><a onclick="renderAdminDashboard('church-expenses'); toggleSidebar();" class="${view === 'church-expenses' ? 'active' : ''}"><i class="fa-solid fa-file-invoice-dollar"></i> Church Expenses</a></li>
           <li><a onclick="renderAdminDashboard('group-expenses'); toggleSidebar();" class="${view === 'group-expenses' ? 'active' : ''}"><i class="fa-solid fa-receipt"></i> Group Expenses</a></li>
           <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View All Members</a></li>
           <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
@@ -1791,7 +1399,7 @@ function addFinancialEntry(e, key, viewType) {
   records.push({ title, amount, date });
   saveFinancialRecords(key, records);
 
-  alert(`${viewType.toUpperCase()} record added successfully!`);
+  alert(`${viewType.toUpperCase().replace('-', ' ')} record added successfully!`);
   renderAdminDashboard(viewType);
 }
 
