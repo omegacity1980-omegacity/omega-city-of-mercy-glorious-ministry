@@ -189,7 +189,6 @@ function calculateGroupFinancials(groupKey) {
 
 // Silent Auto Refresh Engine
 function performSilentAutoRefresh() {
-  // Do not re-render if user is currently typing in an input field or modal open
   if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
     return;
   }
@@ -659,8 +658,6 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
 
   const isLeader = user.isGroupLeader;
   const isExco = user.excoRole;
-
-  // Preserve sidebar open state during auto-refresh
   const isSidebarOpen = document.getElementById("member-sidebar")?.classList.contains("open");
 
   container.innerHTML = `
@@ -830,7 +827,7 @@ function renderGroupLeaderDashboard(leader, view = 'members', isAutoRefresh = fa
             <label>Assign Exco Role</label>
             <select id="leader-exco-role" required>
               <option value="">-- Select Role --</option>
-              <option value="Dues Collector">Dues Collector</option>
+              <option value="Dues Collector">Dues Collector (Enter Member Dues)</option>
               <option value="Levy Collector">Levy Collector</option>
               <option value="Post Levy">Post Levy</option>
               <option value="Record Levy Paid">Record Levy Paid</option>
@@ -952,6 +949,16 @@ function handleAssignExcoByLeader(e, leaderPhone) {
   if (member) {
     member.excoRole = roleName;
     saveUsers(users);
+
+    // Send direct Exco appointment notification to target member's dashboard
+    let userNotifs = getFinancialRecords(`omega_notifications_${targetPhone}`);
+    userNotifs.unshift({
+      title: "Exco Appointment Notice",
+      message: `You have been appointed as ${roleName} for your fellowship. You now have access to your Exco Portal.`,
+      date: new Date().toLocaleString()
+    });
+    saveFinancialRecords(`omega_notifications_${targetPhone}`, userNotifs);
+
     alert(`${member.fullName} appointed as ${roleName}!`);
     renderGroupLeaderDashboard(users.find(u => u.phone === leaderPhone), 'assign-excos');
   }
@@ -968,11 +975,11 @@ function removeExcoRole(phone, leaderPhone) {
   }
 }
 
-// EXCO SPECIFIC PORTAL VIEW
+// EXCO SPECIFIC PORTAL VIEW (DUES & LEVY ENTRY HANDLED HERE)
 function renderExcoPortalView(user) {
   const role = user.excoRole;
 
-  if (role === "Dues Collector" || role === "Record Levy Paid" || role === "Post Levy") {
+  if (role === "Dues Collector" || role === "Record Levy Paid" || role === "Post Levy" || role === "Levy Collector") {
     return `
       <div class="admin-content-area" style="padding:0;">
         <h3>Exco Portal - ${role}</h3>
@@ -984,10 +991,10 @@ function renderExcoPortalView(user) {
               ${getUsers().filter(u => u.group === user.group).map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('')}
             </select>
 
-            <label>${role === "Dues Collector" ? 'Dues Amount (₦)' : 'Levy Amount (₦)'}</label>
-            <input type="number" id="exco-entry-amount" required placeholder="5000" />
+            <label>${role === "Dues Collector" ? 'Member Dues Amount (₦)' : 'Levy Amount (₦)'}</label>
+            <input type="number" id="exco-entry-amount" required placeholder="5000" min="1" />
 
-            <button type="submit" class="btn-primary">Record Payment</button>
+            <button type="submit" class="btn-primary">Record Payment Entry</button>
           </form>
         </div>
       </div>
@@ -1028,7 +1035,7 @@ function handleExcoPaymentEntry(e, excoPhone, role) {
       memberPhone: phone,
       amount: amount,
       paymentDate: new Date().toISOString().split('T')[0],
-      recordedBy: excoPhone
+      recordedBy: `Group Exco (${excoPhone})`
     });
     saveFinancialRecords("omega_dues_payments", payments);
   } else {
@@ -1117,7 +1124,7 @@ function handleAdminLogin(e) {
   renderAdminDashboard();
 }
 
-// FULL ADMIN DASHBOARD WITH COMPLETE SIDEBAR NAVIGATION
+// FULL ADMIN DASHBOARD (WITHOUT DUES ENTRY IN MAIN SIDEBAR)
 function renderAdminDashboard(view = "home", isAutoRefresh = false) {
   currentActiveState = { type: 'admin', view: view, user: null };
   const container = document.getElementById("view-container");
@@ -1396,40 +1403,6 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </table>
       </div>
     `;
-  } else if (view === "dues-entry") {
-    const users = getUsers();
-    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
-
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>Record Member Dues Payment</h3>
-        <div class="settings-card">
-          <form onsubmit="handleDuesEntry(event)">
-            <label>Select Member</label>
-            <select id="dues-member-phone" required>
-              <option value="">-- Select Member --</option>
-              ${memberOptions}
-            </select>
-
-            <label>Amount Paid (₦)</label>
-            <input type="number" id="dues-amount" min="1" required placeholder="e.g. 1000" />
-
-            <label>Payment Mode</label>
-            <select id="dues-mode" onchange="toggleBackdateFields()" required>
-              <option value="current">Current (Clear Oldest Arrears First)</option>
-              <option value="backdate">Backdate Specific Month</option>
-            </select>
-
-            <div id="backdate-fields" class="hidden">
-              <label>Historical Month Date</label>
-              <input type="date" id="dues-backdate" />
-            </div>
-
-            <button type="submit" class="btn-primary">Record Dues Payment</button>
-          </form>
-        </div>
-      </div>
-    `;
   } else if (view === "projects") {
     const users = getUsers();
     let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
@@ -1608,7 +1581,6 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
           <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Assign Group Leaders</a></li>
-          <li><a onclick="renderAdminDashboard('dues-entry'); toggleSidebar();" class="${view === 'dues-entry' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> Dues Entry</a></li>
           <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
           <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
           <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
@@ -1708,43 +1680,6 @@ function handleGroupExpenseEntry(e) {
   saveFinancialRecords("omega_group_expenses", records);
   alert("Group expense recorded successfully!");
   renderAdminDashboard("group-expenses");
-}
-
-function toggleBackdateFields() {
-  const mode = document.getElementById("dues-mode").value;
-  const backdateFields = document.getElementById("backdate-fields");
-  if (mode === "backdate") {
-    backdateFields.classList.remove("hidden");
-  } else {
-    backdateFields.classList.add("hidden");
-  }
-}
-
-function handleDuesEntry(e) {
-  e.preventDefault();
-  const phone = document.getElementById("dues-member-phone").value;
-  const amount = parseFloat(document.getElementById("dues-amount").value);
-  const mode = document.getElementById("dues-mode").value;
-  const dateStr = mode === "backdate" ? document.getElementById("dues-backdate").value : new Date().toISOString().split('T')[0];
-
-  if (!phone || isNaN(amount) || amount <= 0) {
-    alert("Please fill in valid payment details!");
-    return;
-  }
-
-  const payments = getFinancialRecords("omega_dues_payments");
-  payments.push({
-    id: "TXN-" + Date.now(),
-    memberPhone: phone,
-    amount: amount,
-    mode: mode,
-    paymentDate: dateStr,
-    recordedBy: "Main Admin"
-  });
-
-  saveFinancialRecords("omega_dues_payments", payments);
-  alert(`Dues payment of ₦${amount.toLocaleString()} recorded successfully!`);
-  renderAdminDashboard("dues-entry");
 }
 
 function handleProjectEntry(e) {
