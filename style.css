@@ -454,7 +454,6 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
 }
 
-/* Total Group Balance Highlight Banner */
 .balance-card-full {
   background: linear-gradient(135deg, #1e293b, #0f172a);
   border: 1px solid var(--gold-primary);
@@ -463,6 +462,7 @@ input:focus, select:focus, textarea:focus {
   padding: 18px 16px;
   box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
   text-align: center;
+  margin-bottom: 12px;
 }
 
 .balance-card-full h4 {
@@ -491,6 +491,7 @@ input:focus, select:focus, textarea:focus {
   grid-template-columns: calc(50% - 6px) calc(50% - 6px) !important;
   gap: 12px !important;
   width: 100%;
+  margin-bottom: 20px;
 }
 
 .summary-card {
