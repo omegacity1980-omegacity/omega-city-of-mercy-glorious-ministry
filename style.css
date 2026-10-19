@@ -443,57 +443,85 @@ input:focus, select:focus, textarea:focus {
   object-fit: cover;
 }
 
-/* ADMIN DASHBOARD 2x2 GRID & BALANCE CARD STYLING */
+/* PREMIUM ADMIN DASHBOARD LAYOUT & STRICT 2x2 GRID */
 .cards-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: 12px;
+  padding: 16px;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
 }
 
+/* Total Group Balance Highlight Banner */
 .balance-card-full {
-  background: linear-gradient(135deg, #2563eb, #4f46e5);
-  color: white;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid var(--gold-primary);
+  color: #ffffff;
   border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  padding: 18px 16px;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.15);
+  text-align: center;
 }
 
 .balance-card-full h4 {
-  font-size: 0.8rem;
-  opacity: 0.85;
+  font-size: 0.75rem;
+  color: var(--gold-primary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 6px;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
 }
 
 .balance-card-full p {
   font-size: 2.2rem;
   font-weight: 800;
+  color: #ffffff;
   margin: 4px 0;
 }
 
 .balance-card-full small {
-  font-size: 0.75rem;
-  opacity: 0.8;
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 
+/* STRICT 2-BY-2 GRID ON ALL SCREENS */
 .admin-cards-grid-2x2 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  display: grid !important;
+  grid-template-columns: calc(50% - 6px) calc(50% - 6px) !important;
+  gap: 12px !important;
+  width: 100%;
 }
 
-@media(max-width: 600px) {
-  .admin-cards-grid-2x2 {
-    grid-template-columns: 1fr;
-  }
+.summary-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
-/* STRICT 2-COLUMN GRID (2 SIDE-BY-SIDE) */
+.summary-card h4 {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-card p {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gold-primary);
+}
+
+/* STRICT 2-COLUMN GRID FOR MEMBER & LEADER PORTALS */
 .member-card-grid, .two-col-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -501,7 +529,7 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 20px;
 }
 
-.summary-card, .m-card, .leader-card {
+.m-card, .leader-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 8px;
@@ -509,7 +537,7 @@ input:focus, select:focus, textarea:focus {
   text-align: left;
 }
 
-.summary-card h4, .m-card h4, .leader-card h4 {
+.m-card h4, .leader-card h4 {
   font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -517,7 +545,7 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0.5px;
 }
 
-.summary-card p, .m-card p {
+.m-card p {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--gold-primary);
