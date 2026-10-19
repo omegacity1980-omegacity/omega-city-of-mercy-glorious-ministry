@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
-  // 6-Second Loading Screen Transition
+  // 6-Second Splash / Loading Screen Timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 6000);
 });
 
-// Database Helper Functions
+// Database Helpers
 function getUsers() {
   return JSON.parse(localStorage.getItem("omega_users")) || [];
 }
@@ -56,7 +56,7 @@ function initDuesConfig() {
   }
 }
 
-// Ledger Engine
+// Financial Ledger Calculations
 function getRateForMonth(year, monthIndex) {
   const monthStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
   const rates = getDuesRates().sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
@@ -139,7 +139,48 @@ function calculateMemberProjects(phone) {
   };
 }
 
-// Render Authentication Choice Screen
+function calculateGroupFinancials(groupKey) {
+  const users = getUsers();
+  let groupMembers = groupKey === "workforce" ? users.filter(u => u.isWorker) : users.filter(u => u.group === groupKey);
+
+  const duesPayments = getFinancialRecords("omega_dues_payments");
+  const duesPaid = duesPayments
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const projects = getFinancialRecords("omega_projects");
+  const levyPaid = projects
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const groupExpensesRecords = getFinancialRecords("omega_group_expenses");
+  const expenses = groupExpensesRecords
+    .filter(e => e.group === groupKey)
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
+  let duesArrears = 0;
+  groupMembers.forEach(m => {
+    let calc = calculateMemberDues(m.phone);
+    duesArrears += calc.amountOwing;
+  });
+
+  const totalLevyArrears = Number(localStorage.getItem(`omega_levy_arrears_${groupKey}`)) || 0;
+  const inflow = duesPaid + levyPaid;
+  const totalBalance = inflow - expenses;
+
+  return {
+    inflow,
+    duesPaid,
+    levyPaid,
+    duesArrears,
+    totalLevyArrears,
+    expenses,
+    totalBalance,
+    members: groupMembers
+  };
+}
+
+// Authentication Selection
 function renderAuthSelection() {
   const container = document.getElementById("view-container");
   container.innerHTML = `
@@ -409,7 +450,7 @@ function handleFinalRegistration(e) {
   }
 }
 
-// MEMBER DASHBOARD
+// MEMBER DASHBOARD ROUTING
 function routeUserDashboard(user, view = 'home') {
   const container = document.getElementById("view-container");
   let groupTitle = `${user.group.toUpperCase()} FELLOWSHIP`;
@@ -1030,6 +1071,7 @@ function handleAdminLogin(e) {
   renderAdminDashboard();
 }
 
+// FULL ADMIN DASHBOARD WITH COMPLETE SIDEBAR NAVIGATION
 function renderAdminDashboard(view = "home") {
   const container = document.getElementById("view-container");
   let mainContentHtml = "";
@@ -1072,6 +1114,79 @@ function renderAdminDashboard(view = "home") {
           </div>
         </div>
       </section>
+    `;
+  } else if (["men", "women", "youth", "workforce"].includes(view)) {
+    const fin = calculateGroupFinancials(view);
+    const titleName = view.toUpperCase() + (view === 'workforce' ? '' : ' FELLOWSHIP');
+
+    let rows = fin.members.map((u, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${u.fullName}</td>
+        <td>${u.phone}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>${titleName} FINANCIAL SUMMARY</h3>
+        
+        <div class="balance-card-full">
+          <h4>TOTAL ${view.toUpperCase()} BALANCE</h4>
+          <p>₦${fin.totalBalance.toLocaleString()}</p>
+          <small>(Dues Paid + Levy Paid - Expenses)</small>
+        </div>
+
+        <div class="admin-cards-grid-2x2">
+          <div class="summary-card">
+            <h4>INFLOW</h4>
+            <p style="color: var(--success);">₦${fin.inflow.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES PAID</h4>
+            <p style="color: var(--gold-primary);">₦${fin.duesPaid.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>LEVY PAID</h4>
+            <p style="color: #a855f7;">₦${fin.levyPaid.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>EXPENSES</h4>
+            <p style="color: var(--danger);">₦${fin.expenses.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES ARREARS</h4>
+            <p style="color: var(--danger);">₦${fin.duesArrears.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL LEVY ARREARS</h4>
+            <p style="color: var(--danger);">₦${fin.totalLevyArrears.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <h3>${titleName} Members List</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Workforce / Dept</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No members in this group yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     `;
   } else if (view === "leaders") {
     const users = getUsers();
@@ -1131,6 +1246,282 @@ function renderAdminDashboard(view = "home") {
         </div>
       </div>
     `;
+  } else if (["all", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
+    const users = getUsers();
+    let filteredUsers = users;
+
+    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department === "Sanitation");
+    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department === "Technical");
+    else if (view === "dept-security") filteredUsers = users.filter(u => u.department === "Security");
+    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department === "Choir");
+    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department === "Usher");
+    else if (view === "dept-children") filteredUsers = users.filter(u => u.department === "Children class");
+
+    let rows = filteredUsers.map((u, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${u.fullName}</td>
+        <td>${u.phone}</td>
+        <td>${u.group.toUpperCase()}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>${view.toUpperCase().replace('DEPT-', 'DEPARTMENT: ')} View</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Group</th>
+              <th>Department / Worker</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "group-expenses") {
+    const records = getFinancialRecords("omega_group_expenses");
+
+    let rows = records.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.group.toUpperCase()}</td>
+        <td>${r.title}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group Expense</h3>
+        <div class="settings-card">
+          <form onsubmit="handleGroupExpenseEntry(event)">
+            <label>Select Fellowship / Group</label>
+            <select id="grp-exp-group" required>
+              <option value="men">Men Fellowship</option>
+              <option value="women">Women Fellowship</option>
+              <option value="youth">Youth Fellowship</option>
+              <option value="workforce">Workforce</option>
+            </select>
+
+            <label>Expense Description</label>
+            <input type="text" id="grp-exp-title" placeholder="e.g. Welfare / Event Setup" required />
+
+            <label>Amount (₦)</label>
+            <input type="number" id="grp-exp-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="grp-exp-date" required />
+
+            <button type="submit" class="btn-primary">Record Group Expense</button>
+          </form>
+        </div>
+
+        <h3>Group Expense History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Group</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No group expenses recorded.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "dues-entry") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Member Dues Payment</h3>
+        <div class="settings-card">
+          <form onsubmit="handleDuesEntry(event)">
+            <label>Select Member</label>
+            <select id="dues-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Amount Paid (₦)</label>
+            <input type="number" id="dues-amount" min="1" required placeholder="e.g. 1000" />
+
+            <label>Payment Mode</label>
+            <select id="dues-mode" onchange="toggleBackdateFields()" required>
+              <option value="current">Current (Clear Oldest Arrears First)</option>
+              <option value="backdate">Backdate Specific Month</option>
+            </select>
+
+            <div id="backdate-fields" class="hidden">
+              <label>Historical Month Date</label>
+              <input type="date" id="dues-backdate" />
+            </div>
+
+            <button type="submit" class="btn-primary">Record Dues Payment</button>
+          </form>
+        </div>
+      </div>
+    `;
+  } else if (view === "projects") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+    const projects = getFinancialRecords("omega_projects");
+
+    let rows = projects.map((p, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${p.date}</td>
+        <td>${p.memberName}</td>
+        <td>${p.projectName}</td>
+        <td>₦${Number(p.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group / Building Project Contribution</h3>
+        <div class="settings-card">
+          <form onsubmit="handleProjectEntry(event)">
+            <label>Select Member</label>
+            <select id="proj-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Project / Levy Title</label>
+            <input type="text" id="proj-title" placeholder="e.g. Building Project / Men Annual Levy" required />
+
+            <label>Contribution Amount (₦)</label>
+            <input type="number" id="proj-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="proj-date" required />
+
+            <button type="submit" class="btn-primary">Record Contribution</button>
+          </form>
+        </div>
+
+        <h3>Project Contribution History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Member</th>
+              <th>Project</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No project records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "settings") {
+    const users = getUsers();
+    let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Settings & Administrative Controls</h3>
+
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-coins"></i> Configure Monthly Dues Rate</h4>
+          <form onsubmit="handleChangeDuesRate(event)">
+            <label>New Monthly Amount (₦)</label>
+            <input type="number" id="new-dues-rate" min="1" required placeholder="e.g. 1000" />
+
+            <label>Effective Month (YYYY-MM)</label>
+            <input type="month" id="dues-effective-month" required />
+
+            <button type="submit" class="btn-primary">Update Dues Rate</button>
+          </form>
+        </div>
+
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-palette"></i> Change Theme</h4>
+          <select onchange="changeTheme(this.value)">
+            <option value="dark">Professional Dark Gold (Default)</option>
+            <option value="light">Professional Light</option>
+          </select>
+        </div>
+
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-key"></i> Reset Member / Leader / Exco PIN</h4>
+          <form onsubmit="handleResetPin(event)">
+            <label>Select User</label>
+            <select id="reset-user-phone" required>
+              <option value="">-- Select User --</option>
+              ${userOptions}
+            </select>
+            <label>New PIN</label>
+            <input type="password" id="reset-new-pin" placeholder="Enter new PIN" required />
+            <button type="submit" class="btn-primary">Update PIN</button>
+          </form>
+        </div>
+      </div>
+    `;
+  } else if (["tithe", "offering", "church-expenses"].includes(view)) {
+    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : "omega_expenses";
+    const currentRecords = getFinancialRecords(recordKey);
+
+    let rows = currentRecords.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.title || r.member || 'General'}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record New ${view.toUpperCase()}</h3>
+        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
+          <input type="text" id="fin-title" placeholder="Description / Member Name" required />
+          <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
+          <input type="date" id="fin-date" required />
+          <button type="submit" class="btn-primary">Add ${view.toUpperCase()}</button>
+        </form>
+
+        <h3>${view.toUpperCase()} Records History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Description / Member</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
 
   container.innerHTML = `
@@ -1142,6 +1533,18 @@ function renderAdminDashboard(view = "home") {
               <i class="fa-solid fa-bars"></i> Menu
             </button>
             <h3>Admin Portal</h3>
+          </div>
+          <div class="topbar-right">
+            <div class="notification-bell">
+              <i class="fa-solid fa-bell"></i>
+              <span class="bell-badge">3</span>
+            </div>
+            <div class="admin-profile">
+              <img src="https://via.placeholder.com/36" class="admin-avatar" alt="Admin" />
+              <div class="admin-info">
+                <span>Main Admin</span>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -1156,6 +1559,27 @@ function renderAdminDashboard(view = "home") {
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
           <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><i class="fa-solid fa-user-shield"></i> Assign Group Leaders</a></li>
+          <li><a onclick="renderAdminDashboard('dues-entry'); toggleSidebar();" class="${view === 'dues-entry' ? 'active' : ''}"><i class="fa-solid fa-wallet"></i> Dues Entry</a></li>
+          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> Group Projects</a></li>
+          <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}"><i class="fa-solid fa-user-tie"></i> Men Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}"><i class="fa-solid fa-user-dress"></i> Women Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}"><i class="fa-solid fa-child"></i> Youth Fellowship</a></li>
+          
+          <!-- Workforce & Departments -->
+          <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="${view === 'workforce' ? 'active' : ''}"><i class="fa-solid fa-briefcase"></i> Workforce (All)</a></li>
+          <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}"><i class="fa-solid fa-broom"></i> Sanitation</a></li>
+          <li><a onclick="renderAdminDashboard('dept-technical'); toggleSidebar();" class="sub-menu-item ${view === 'dept-technical' ? 'active' : ''}"><i class="fa-solid fa-gears"></i> Technical</a></li>
+          <li><a onclick="renderAdminDashboard('dept-security'); toggleSidebar();" class="sub-menu-item ${view === 'dept-security' ? 'active' : ''}"><i class="fa-solid fa-shield-halved"></i> Security</a></li>
+          <li><a onclick="renderAdminDashboard('dept-choir'); toggleSidebar();" class="sub-menu-item ${view === 'dept-choir' ? 'active' : ''}"><i class="fa-solid fa-music"></i> Choir</a></li>
+          <li><a onclick="renderAdminDashboard('dept-usher'); toggleSidebar();" class="sub-menu-item ${view === 'dept-usher' ? 'active' : ''}"><i class="fa-solid fa-user-check"></i> Usher</a></li>
+          <li><a onclick="renderAdminDashboard('dept-children'); toggleSidebar();" class="sub-menu-item ${view === 'dept-children' ? 'active' : ''}"><i class="fa-solid fa-children"></i> Children class</a></li>
+
+          <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="${view === 'tithe' ? 'active' : ''}"><i class="fa-solid fa-coins"></i> Tithe</a></li>
+          <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="${view === 'offering' ? 'active' : ''}"><i class="fa-solid fa-hand-holding-dollar"></i> Offering</a></li>
+          <li><a onclick="renderAdminDashboard('church-expenses'); toggleSidebar();" class="${view === 'church-expenses' ? 'active' : ''}"><i class="fa-solid fa-file-invoice-dollar"></i> Church Expenses</a></li>
+          <li><a onclick="renderAdminDashboard('group-expenses'); toggleSidebar();" class="${view === 'group-expenses' ? 'active' : ''}"><i class="fa-solid fa-receipt"></i> Group Expenses</a></li>
+          <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><i class="fa-solid fa-users"></i> View All Members</a></li>
+          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
           <li><a onclick="renderAuthSelection()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
       </aside>
@@ -1213,7 +1637,173 @@ function handleAppointGroupLeader(e) {
   }
 }
 
+function handleGroupExpenseEntry(e) {
+  e.preventDefault();
+  const group = document.getElementById("grp-exp-group").value;
+  const title = document.getElementById("grp-exp-title").value.trim();
+  const amount = parseFloat(document.getElementById("grp-exp-amount").value);
+  const date = document.getElementById("grp-exp-date").value;
+
+  const records = getFinancialRecords("omega_group_expenses");
+  records.push({ group, title, amount, date });
+
+  saveFinancialRecords("omega_group_expenses", records);
+  alert("Group expense recorded successfully!");
+  renderAdminDashboard("group-expenses");
+}
+
+function toggleBackdateFields() {
+  const mode = document.getElementById("dues-mode").value;
+  const backdateFields = document.getElementById("backdate-fields");
+  if (mode === "backdate") {
+    backdateFields.classList.remove("hidden");
+  } else {
+    backdateFields.classList.add("hidden");
+  }
+}
+
+function handleDuesEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("dues-member-phone").value;
+  const amount = parseFloat(document.getElementById("dues-amount").value);
+  const mode = document.getElementById("dues-mode").value;
+  const dateStr = mode === "backdate" ? document.getElementById("dues-backdate").value : new Date().toISOString().split('T')[0];
+
+  if (!phone || isNaN(amount) || amount <= 0) {
+    alert("Please fill in valid payment details!");
+    return;
+  }
+
+  const payments = getFinancialRecords("omega_dues_payments");
+  payments.push({
+    id: "TXN-" + Date.now(),
+    memberPhone: phone,
+    amount: amount,
+    mode: mode,
+    paymentDate: dateStr,
+    recordedBy: "Main Admin"
+  });
+
+  saveFinancialRecords("omega_dues_payments", payments);
+  alert(`Dues payment of ₦${amount.toLocaleString()} recorded successfully!`);
+  renderAdminDashboard("dues-entry");
+}
+
+function handleProjectEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("proj-member-phone").value;
+  const projectName = document.getElementById("proj-title").value.trim();
+  const amount = parseFloat(document.getElementById("proj-amount").value);
+  const date = document.getElementById("proj-date").value;
+
+  const users = getUsers();
+  const user = users.find(u => u.phone === phone);
+
+  const projects = getFinancialRecords("omega_projects");
+  projects.push({
+    memberPhone: phone,
+    memberName: user ? user.fullName : "Unknown",
+    projectName,
+    amount,
+    date
+  });
+
+  saveFinancialRecords("omega_projects", projects);
+  alert("Project contribution recorded successfully!");
+  renderAdminDashboard("projects");
+}
+
+function handleChangeDuesRate(e) {
+  e.preventDefault();
+  const rate = parseFloat(document.getElementById("new-dues-rate").value);
+  const monthStr = document.getElementById("dues-effective-month").value;
+
+  if (isNaN(rate) || rate <= 0 || !monthStr) {
+    alert("Invalid rate or effective month!");
+    return;
+  }
+
+  const rates = getDuesRates();
+  rates.push({
+    effectiveFrom: monthStr,
+    rate: rate,
+    admin: "Main Admin",
+    dateSet: new Date().toISOString()
+  });
+
+  saveDuesRates(rates);
+  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}!`);
+  renderAdminDashboard("settings");
+}
+
+function addFinancialEntry(e, key, viewType) {
+  e.preventDefault();
+  const title = document.getElementById("fin-title").value.trim();
+  const amount = document.getElementById("fin-amount").value.trim();
+  const date = document.getElementById("fin-date").value;
+
+  const records = getFinancialRecords(key);
+  records.push({ title, amount, date });
+  saveFinancialRecords(key, records);
+
+  alert(`${viewType.toUpperCase()} record added successfully!`);
+  renderAdminDashboard(viewType);
+}
+
+function changeTheme(theme) {
+  const body = document.getElementById("app-body");
+  if (theme === "light") {
+    body.className = "theme-light";
+  } else {
+    body.className = "theme-dark";
+  }
+}
+
+function handleResetPin(e) {
+  e.preventDefault();
+  const phone = document.getElementById("reset-user-phone").value;
+  const newPin = document.getElementById("reset-new-pin").value.trim();
+
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (user) {
+    user.pin = newPin;
+    saveUsers(users);
+    alert("PIN reset successfully!");
+    renderAdminDashboard("settings");
+  }
+}
+
 function toggleSidebar() {
   const sidebar = document.getElementById("admin-sidebar");
   sidebar.classList.toggle("open");
+}
+
+function editMember(phone) {
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (!user) return;
+
+  const newName = prompt("Edit Full Name:", user.fullName);
+  if (newName === null) return;
+
+  const newPhone = prompt("Edit Phone Number:", user.phone);
+  if (newPhone === null) return;
+
+  user.fullName = newName.trim();
+  user.phone = newPhone.trim();
+
+  saveUsers(users);
+  alert("Member details updated successfully!");
+  renderAdminDashboard('all');
+}
+
+function deleteMember(phone) {
+  if (confirm("Are you sure you want to delete this member?")) {
+    let users = getUsers();
+    users = users.filter(u => u.phone !== phone);
+    saveUsers(users);
+    alert("Member deleted successfully.");
+    renderAdminDashboard('all');
+  }
 }
