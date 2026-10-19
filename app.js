@@ -489,23 +489,25 @@ function handleFinalRegistration(e) {
 
 // MEMBER DASHBOARD ROUTING
 function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
-  currentActiveState = { type: 'member', view: view, user: user };
+  const latestUser = getUsers().find(u => u.phone === user.phone) || user;
+  currentActiveState = { type: 'member', view: view, user: latestUser };
+  
   const container = document.getElementById("view-container");
-  let groupTitle = `${user.group.toUpperCase()} FELLOWSHIP`;
+  let groupTitle = `${latestUser.group.toUpperCase()} FELLOWSHIP`;
 
-  const financials = calculateMemberDues(user.phone);
-  const projectsData = calculateMemberProjects(user.phone);
+  const financials = calculateMemberDues(latestUser.phone);
+  const projectsData = calculateMemberProjects(latestUser.phone);
   const currentMonthRate = getRateForMonth(new Date().getFullYear(), new Date().getMonth());
 
-  const userNotifications = getFinancialRecords(`omega_notifications_${user.phone}`);
-  const userAttendance = getFinancialRecords(`omega_attendance_${user.phone}`);
+  const userNotifications = getFinancialRecords(`omega_notifications_${latestUser.phone}`);
+  const userAttendance = getFinancialRecords(`omega_attendance_${latestUser.phone}`);
 
   let mainBodyContent = "";
 
   if (view === 'home') {
     mainBodyContent = `
       <div class="welcome-banner">
-        <h2>${groupTitle} DASHBOARD ${user.isWorker ? `<span class="workforce-badge">| ${user.department ? user.department.toUpperCase() : 'Workforce'}</span>` : ''}</h2>
+        <h2>${groupTitle} DASHBOARD ${latestUser.isWorker ? `<span class="workforce-badge">| ${latestUser.department ? latestUser.department.toUpperCase() : 'Workforce'}</span>` : ''}</h2>
         <p class="slogan-text">Omega City Of Mercy - Keeping financial records transparent.</p>
       </div>
 
@@ -534,7 +536,7 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
           <h4>Project Contributions</h4>
           <p>₦${projectsData.total.toLocaleString()}</p>
         </div>
-        <div class="m-card" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'attendance')" style="cursor:pointer; border:1px solid var(--gold-primary);">
+        <div class="m-card" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'attendance')" style="cursor:pointer; border:1px solid var(--gold-primary);">
           <h4><i class="fa-solid fa-calendar-check"></i> Attendance Record</h4>
           <p style="font-size:1.1rem; color:var(--success);">${userAttendance.length} Services Attended</p>
         </div>
@@ -598,7 +600,7 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
     `;
   } else if (view === 'notifications') {
     let listHtml = userNotifications.map((n, i) => `
-      <div class="settings-card" onclick="viewNotificationDetail(${i}, '${user.phone}')" style="cursor:pointer;">
+      <div class="settings-card" onclick="viewNotificationDetail(${i}, '${latestUser.phone}')" style="cursor:pointer;">
         <h4 style="color:var(--gold-primary); margin-bottom:4px;">${n.title}</h4>
         <p style="font-size:0.75rem; color:var(--text-muted);">${n.date}</p>
         <p style="font-size:0.85rem; margin-top:6px;">${n.message}</p>
@@ -640,7 +642,7 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
       </div>
     `;
   } else if (view === 'exco-role') {
-    mainBodyContent = renderExcoPortalView(user);
+    mainBodyContent = renderExcoPortalView(latestUser);
   } else if (view === 'settings') {
     mainBodyContent = `
       <div class="admin-content-area" style="padding: 0;">
@@ -656,8 +658,8 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
     `;
   }
 
-  const isLeader = user.isGroupLeader;
-  const isExco = user.excoRole;
+  const isLeader = latestUser.isGroupLeader;
+  const isExco = latestUser.excoRole;
   const isSidebarOpen = document.getElementById("member-sidebar")?.classList.contains("open");
 
   container.innerHTML = `
@@ -668,16 +670,16 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
             <i class="fa-solid fa-bars"></i> Menu
           </button>
           <div class="member-profile-section">
-            <img src="${user.profilePic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
+            <img src="${latestUser.profilePic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
             <div>
-              <h4 style="font-size:0.85rem;">${user.fullName}</h4>
-              <span class="member-id-tag">ID: OCM-${user.phone.slice(-4)}</span>
+              <h4 style="font-size:0.85rem;">${latestUser.fullName}</h4>
+              <span class="member-id-tag">ID: OCM-${latestUser.phone.slice(-4)}</span>
             </div>
           </div>
         </div>
         <div class="member-topbar-right">
-          ${isLeader ? `<button class="btn-group-admin" onclick="openGroupLeaderPinModal('${user.phone}')"><i class="fa-solid fa-user-shield"></i> Group Admin</button>` : ''}
-          <div class="notification-bell" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications')">
+          ${isLeader ? `<button class="btn-group-admin" onclick="openGroupLeaderPinModal('${latestUser.phone}')"><i class="fa-solid fa-user-shield"></i> Group Admin</button>` : ''}
+          <div class="notification-bell" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'notifications')">
             <i class="fa-solid fa-bell"></i>
             <span class="bell-badge">${userNotifications.length}</span>
           </div>
@@ -694,25 +696,25 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
 
       <aside class="member-sidebar ${isSidebarOpen ? 'open' : ''}" id="member-sidebar">
         <div class="sidebar-header">
-          <span>${user.group.toUpperCase()} MENU</span>
+          <span>${latestUser.group.toUpperCase()} MENU</span>
           <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'attendance'); toggleMemberSidebar();" class="${view === 'attendance' ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> Attendance Record</a></li>
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><i class="fa-solid fa-house"></i> Dashboard</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><i class="fa-solid fa-diagram-project"></i> View Project Levy</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'attendance'); toggleMemberSidebar();" class="${view === 'attendance' ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> Attendance Record</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</a></li>
           
           ${isExco ? `
             <li>
-              <a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'exco-role'); toggleMemberSidebar();" class="${view === 'exco-role' ? 'active' : ''}" style="color:var(--gold-primary);">
-                <i class="fa-solid fa-user-gear"></i> My Exco Portal (${user.excoRole})
+              <a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'exco-role'); toggleMemberSidebar();" class="${view === 'exco-role' ? 'active' : ''}" style="color:var(--gold-primary);">
+                <i class="fa-solid fa-user-gear"></i> My Exco Portal (${latestUser.excoRole})
               </a>
             </li>
           ` : ''}
 
-          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${user.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><i class="fa-solid fa-gear"></i> Settings</a></li>
           <li><a onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
         </ul>
       </aside>
@@ -720,23 +722,70 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
   `;
 }
 
-// GROUP LEADER LOGIN & NEW PIN SETUP
+// GROUP LEADER LOGIN MODAL & VERIFICATION
 function openGroupLeaderPinModal(phone) {
   const leader = getUsers().find(u => u.phone === phone);
 
   if (leader.hasCustomLeaderPin) {
-    const pin = prompt("Enter your 7-Digit Group Admin PIN:");
-    if (pin === leader.leaderPin) {
-      renderGroupLeaderDashboard(leader, 'members');
-    } else if (pin !== null) {
-      alert("Incorrect 7-Digit PIN!");
-    }
+    const modalHtml = `
+      <div class="modal-overlay" id="leader-login-modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Enter Group Admin PIN</h3>
+            <button onclick="document.getElementById('leader-login-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <form onsubmit="handleLeaderCustomPinLogin(event, '${phone}')">
+            <label>7-Digit Admin PIN</label>
+            <input type="password" id="custom-leader-pin-input" maxlength="7" minlength="7" required placeholder="*******" />
+            <button type="submit" class="btn-primary">Access Leader Portal</button>
+          </form>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
     return;
   }
 
-  const tempPin = prompt("Enter the 7-Digit PIN sent to your notifications:");
-  if (tempPin === leader.tempLeaderPin) {
-    const modalHtml = `
+  const modalHtml = `
+    <div class="modal-overlay" id="leader-temp-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Verify Temporary Leader PIN</h3>
+          <button onclick="document.getElementById('leader-temp-modal').remove()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form onsubmit="verifyTempLeaderPin(event, '${phone}')">
+          <label>Enter 7-Digit Temporary PIN (Check Notifications)</label>
+          <input type="password" id="temp-leader-pin-input" maxlength="7" minlength="7" required placeholder="*******" />
+          <button type="submit" class="btn-primary">Verify PIN</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function handleLeaderCustomPinLogin(e, phone) {
+  e.preventDefault();
+  const inputPin = document.getElementById("custom-leader-pin-input").value.trim();
+  const leader = getUsers().find(u => u.phone === phone);
+
+  if (leader && inputPin === leader.leaderPin) {
+    document.getElementById("leader-login-modal").remove();
+    renderGroupLeaderDashboard(leader, 'members');
+  } else {
+    alert("Incorrect 7-Digit Group Admin PIN!");
+  }
+}
+
+function verifyTempLeaderPin(e, phone) {
+  e.preventDefault();
+  const tempPinInput = document.getElementById("temp-leader-pin-input").value.trim();
+  const leader = getUsers().find(u => u.phone === phone);
+
+  if (leader && tempPinInput === leader.tempLeaderPin) {
+    document.getElementById("leader-temp-modal").remove();
+    
+    const resetModalHtml = `
       <div class="modal-overlay" id="pin-reset-modal">
         <div class="modal-content">
           <div class="modal-header">
@@ -754,9 +803,9 @@ function openGroupLeaderPinModal(phone) {
         </div>
       </div>
     `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-  } else if (tempPin !== null) {
-    alert("Incorrect Temporary PIN!");
+    document.body.insertAdjacentHTML('beforeend', resetModalHtml);
+  } else {
+    alert("Incorrect Temporary PIN! Please check your Notifications tab.");
   }
 }
 
@@ -975,7 +1024,7 @@ function removeExcoRole(phone, leaderPhone) {
   }
 }
 
-// EXCO SPECIFIC PORTAL VIEW (DUES & LEVY ENTRY HANDLED HERE)
+// EXCO SPECIFIC PORTAL VIEW
 function renderExcoPortalView(user) {
   const role = user.excoRole;
 
@@ -1124,7 +1173,7 @@ function handleAdminLogin(e) {
   renderAdminDashboard();
 }
 
-// FULL ADMIN DASHBOARD (WITHOUT DUES ENTRY IN MAIN SIDEBAR)
+// FULL ADMIN DASHBOARD
 function renderAdminDashboard(view = "home", isAutoRefresh = false) {
   currentActiveState = { type: 'admin', view: view, user: null };
   const container = document.getElementById("view-container");
