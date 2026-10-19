@@ -347,7 +347,7 @@ input:focus, select:focus, textarea:focus {
   position: fixed;
   top: 0;
   left: 0;
-  width: 230px;
+  width: 240px;
   height: 100vh;
   background: var(--card-bg);
   border-right: 1px solid var(--card-border);
@@ -392,7 +392,7 @@ input:focus, select:focus, textarea:focus {
 .sidebar-menu li a {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
   padding: 10px 14px;
   color: var(--text-muted);
   text-decoration: none;
@@ -407,9 +407,20 @@ input:focus, select:focus, textarea:focus {
   border-left: 3px solid var(--gold-primary);
 }
 
+.sub-menu-list {
+  list-style: none;
+  background: rgba(0, 0, 0, 0.2);
+  padding-left: 10px;
+}
+
 .sub-menu-item {
-  padding-left: 28px !important;
+  padding: 8px 14px 8px 30px !important;
   font-size: 0.75rem !important;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  margin-left: auto;
 }
 
 .notification-bell {
@@ -444,7 +455,7 @@ input:focus, select:focus, textarea:focus {
   object-fit: cover;
 }
 
-/* PREMIUM ADMIN DASHBOARD LAYOUT & STRICT 2x2 GRID */
+/* PREMIUM ADMIN DASHBOARD LAYOUT & GRID */
 .cards-container {
   display: flex;
   flex-direction: column;
@@ -486,7 +497,6 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-muted);
 }
 
-/* STRICT 2-BY-2 GRID ON ALL SCREENS */
 .admin-cards-grid-2x2 {
   display: grid !important;
   grid-template-columns: calc(50% - 6px) calc(50% - 6px) !important;
@@ -524,7 +534,6 @@ input:focus, select:focus, textarea:focus {
   color: var(--gold-primary);
 }
 
-/* STRICT 2-COLUMN GRID FOR MEMBER & LEADER PORTALS */
 .member-card-grid, .two-col-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
