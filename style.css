@@ -398,7 +398,6 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
 }
 
-/* STRICT LEFT ALIGNMENT FOR ALL MENU ITEMS */
 .sidebar-menu li a {
   display: flex;
   align-items: center;
@@ -463,6 +462,25 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.7rem;
   color: var(--text-muted);
   margin-left: auto;
+}
+
+/* MEMBER DETAIL MODAL STYLES */
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--card-border);
+  font-size: 0.82rem;
+}
+
+.detail-row strong {
+  color: var(--text-muted);
+}
+
+.detail-row span {
+  color: var(--text-color);
+  font-weight: 600;
 }
 
 .notification-bell {
