@@ -1,28 +1,20 @@
-// SUPABASE CLIENT INITIALIZATION
-// Replace with your actual Supabase Project URL and Public Anon Key
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 let currentActiveState = { type: 'guest', view: 'home', user: null };
 
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
-  // Splash / Loading Screen Timer (6 seconds)
+  // Splash / Loading Screen Timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
     
-    if (loadingScreen) {
+    if (loadingScreen && appContainer) {
       loadingScreen.style.opacity = "0";
       loadingScreen.style.transition = "opacity 0.5s ease";
       
       setTimeout(() => {
         loadingScreen.classList.add("hidden");
-        if (appContainer) {
-          appContainer.classList.remove("hidden");
-        }
+        appContainer.classList.remove("hidden");
         renderAuthSelection();
       }, 500);
     } else {
@@ -54,15 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Database Helpers (Fallback to LocalStorage if offline/syncing)
+// Database Helpers
 function getUsers() {
-  const data = localStorage.getItem("omega_users");
-  if (!data) return [];
-  try {
-    return JSON.parse(data) || [];
-  } catch (err) {
-    return [];
-  }
+  return JSON.parse(localStorage.getItem("omega_users")) || [];
 }
 
 function saveUsers(users) {
@@ -70,13 +56,7 @@ function saveUsers(users) {
 }
 
 function getFinancialRecords(key) {
-  const data = localStorage.getItem(key);
-  if (!data) return [];
-  try {
-    return JSON.parse(data) || [];
-  } catch (err) {
-    return [];
-  }
+  return JSON.parse(localStorage.getItem(key)) || [];
 }
 
 function saveFinancialRecords(key, data) {
@@ -184,6 +164,53 @@ function calculateMemberProjects(phone) {
   };
 }
 
+function calculateGroupFinancials(groupKey) {
+  const users = getUsers();
+  let groupMembers = [];
+
+  if (groupKey === "workforce") {
+    groupMembers = users.filter(u => u.isWorker);
+  } else {
+    groupMembers = users.filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase());
+  }
+
+  const duesPayments = getFinancialRecords("omega_dues_payments");
+  const duesPaid = duesPayments
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const projects = getFinancialRecords("omega_projects");
+  const levyPaid = projects
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const groupExpensesRecords = getFinancialRecords("omega_group_expenses");
+  const expenses = groupExpensesRecords
+    .filter(e => e.group && e.group.toLowerCase() === groupKey.toLowerCase())
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
+  let duesArrears = 0;
+  groupMembers.forEach(m => {
+    let calc = calculateMemberDues(m.phone);
+    duesArrears += calc.amountOwing;
+  });
+
+  const totalLevyArrears = Number(localStorage.getItem(`omega_levy_arrears_${groupKey}`)) || 0;
+  const inflow = duesPaid + levyPaid;
+  const totalBalance = inflow - expenses;
+
+  return {
+    inflow,
+    duesPaid,
+    levyPaid,
+    duesArrears,
+    totalLevyArrears,
+    expenses,
+    totalBalance,
+    members: groupMembers
+  };
+}
+
 function performSilentAutoRefresh() {
   if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
     return;
@@ -196,20 +223,17 @@ function performSilentAutoRefresh() {
   }
 }
 
-// Authentication Selection Screen (The Home Hub)
+// Authentication Selection
 function renderAuthSelection() {
   currentActiveState = { type: 'guest', view: 'home', user: null };
   const container = document.getElementById("view-container");
-  
-  if (!container) return;
-
   container.innerHTML = `
     <div class="auth-box">
       <div class="brand-header">
         <h2>OMEGA CITY OF MERCY</h2>
         <p>Keeping financial records transparent.</p>
       </div>
-      <div class="auth-buttons" style="display: flex; flex-direction: column; gap: 10px;">
+      <div class="auth-buttons">
         <button onclick="renderLogin()" class="btn-primary">Member Login</button>
         <button onclick="renderRegistrationStep1()" class="btn-secondary">Register New Account</button>
         <button onclick="renderAdminLogin()" class="btn-admin-link">Main Admin Login</button>
@@ -241,23 +265,19 @@ function renderLogin() {
   `;
 }
 
-async function handleLogin(e) {
+function handleLogin(e) {
   e.preventDefault();
   const phone = document.getElementById("login-phone").value.trim();
   const pin = document.getElementById("login-pin").value.trim();
 
-  const { data: users, error } = await window.supabaseClient
-    .from('users')
-    .select('*')
-    .eq('phone', phone)
-    .eq('pin', pin);
+  const users = getUsers();
+  const user = users.find(u => u.phone === phone && u.pin === pin);
 
-  if (error || !users || users.length === 0) {
+  if (!user) {
     alert("Invalid phone number or 4-digit PIN!");
     return;
   }
 
-  const user = users[0];
   localStorage.setItem("omega_current_user", JSON.stringify(user));
   routeUserDashboard(user, 'home');
 }
@@ -291,7 +311,7 @@ function renderRegistrationStep1() {
 
 let tempRegData = {};
 
-async function handleRegStep1(e) {
+function handleRegStep1(e) {
   e.preventDefault();
   tempRegData = {
     fullName: document.getElementById("reg-name").value.trim(),
@@ -304,12 +324,8 @@ async function handleRegStep1(e) {
     address: document.getElementById("reg-address").value.trim()
   };
 
-  const { data: existingUsers } = await window.supabaseClient
-    .from('users')
-    .select('phone')
-    .eq('phone', tempRegData.phone);
-
-  if (existingUsers && existingUsers.length > 0) {
+  const users = getUsers();
+  if (users.some(u => u.phone === tempRegData.phone)) {
     alert("This phone number is already registered!");
     return;
   }
@@ -442,7 +458,7 @@ function renderRegistrationStep3() {
   `;
 }
 
-async function handleFinalRegistration(e) {
+function handleFinalRegistration(e) {
   e.preventDefault();
   const pin = document.getElementById("reg-pin").value;
   const pinConfirm = document.getElementById("reg-pin-confirm").value;
@@ -453,63 +469,41 @@ async function handleFinalRegistration(e) {
   }
 
   const fileInput = document.getElementById("reg-pic");
+  const reader = new FileReader();
 
-  async function saveToSupabase(profilePicBase64) {
-    tempRegData.profile_pic = profilePicBase64 || "";
+  reader.onload = function(event) {
+    tempRegData.profilePic = event.target.result;
     tempRegData.pin = pin;
 
-    const { error } = await window.supabaseClient
-      .from('users')
-      .insert([
-        {
-          full_name: tempRegData.fullName,
-          phone: tempRegData.phone,
-          whatsapp: tempRegData.whatsapp,
-          email: tempRegData.email,
-          dob: tempRegData.dob,
-          origin: tempRegData.origin,
-          residence: tempRegData.residence,
-          address: tempRegData.address,
-          group: tempRegData.group,
-          department: tempRegData.department,
-          pin: tempRegData.pin,
-          profile_pic: tempRegData.profile_pic
-        }
-      ]);
+    const users = getUsers();
+    users.push(tempRegData);
+    saveUsers(users);
 
-    if (error) {
-      console.error("Supabase Error:", error);
-      alert("Error saving to Supabase database: " + error.message);
-      return;
-    }
-
-    alert("Registration saved successfully to Supabase! Please log in.");
+    alert("Registration saved successfully! Please log in.");
     renderLogin();
-  }
+  };
 
   if (fileInput.files[0]) {
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      saveToSupabase(event.target.result);
-    };
     reader.readAsDataURL(fileInput.files[0]);
   } else {
-    saveToSupabase("");
+    tempRegData.profilePic = "";
+    tempRegData.pin = pin;
+    const users = getUsers();
+    users.push(tempRegData);
+    saveUsers(users);
+
+    alert("Registration saved successfully! Please log in.");
+    renderLogin();
   }
 }
 
 // MEMBER DASHBOARD ROUTING
-async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
-  const { data: fetchedUsers } = await window.supabaseClient
-    .from('users')
-    .select('*')
-    .eq('phone', user.phone);
-  
-  const latestUser = (fetchedUsers && fetchedUsers.length > 0) ? fetchedUsers[0] : user;
+function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
+  const latestUser = getUsers().find(u => u.phone === user.phone) || user;
   currentActiveState = { type: 'member', view: view, user: latestUser };
   
   const container = document.getElementById("view-container");
-  let groupTitle = `${latestUser.group ? latestUser.group.toUpperCase() : 'MEMBER'} FELLOWSHIP`;
+  let groupTitle = `${latestUser.group.toUpperCase()} FELLOWSHIP`;
 
   const financials = calculateMemberDues(latestUser.phone);
   const projectsData = calculateMemberProjects(latestUser.phone);
@@ -552,7 +546,7 @@ async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
           <h4>Project Contributions</h4>
           <p>₦${projectsData.total.toLocaleString()}</p>
         </div>
-        <div class="m-card" onclick="routeUserDashboard(latestUser, 'attendance')" style="cursor:pointer; border:1px solid var(--gold-primary);">
+        <div class="m-card" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'attendance')" style="cursor:pointer; border:1px solid var(--gold-primary);">
           <h4><i class="fa-solid fa-calendar-check"></i> Attendance Record</h4>
           <p style="font-size:1.1rem; color:var(--success);">${userAttendance.length} Services Attended</p>
         </div>
@@ -615,8 +609,8 @@ async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
       </div>
     `;
   } else if (view === 'notifications') {
-    let listHtml = userNotifications.map((n) => `
-      <div class="settings-card" style="cursor:pointer;">
+    let listHtml = userNotifications.map((n, i) => `
+      <div class="settings-card" onclick="viewNotificationDetail(${i}, '${latestUser.phone}')" style="cursor:pointer;">
         <h4 style="color:var(--gold-primary); margin-bottom:4px;">${n.title}</h4>
         <p style="font-size:0.75rem; color:var(--text-muted);">${n.date}</p>
         <p style="font-size:0.85rem; margin-top:6px;">${n.message}</p>
@@ -657,6 +651,8 @@ async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
         </table>
       </div>
     `;
+  } else if (view === 'exco-role') {
+    mainBodyContent = renderExcoPortalView(latestUser);
   } else if (view === 'settings') {
     mainBodyContent = `
       <div class="admin-content-area" style="padding: 0;">
@@ -672,6 +668,10 @@ async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
     `;
   }
 
+  const isLeader = latestUser.isGroupLeader;
+  const isExco = latestUser.excoRole;
+  const isSidebarOpen = document.getElementById("member-sidebar")?.classList.contains("open");
+
   container.innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
@@ -680,19 +680,20 @@ async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
             <i class="fa-solid fa-bars"></i> Menu
           </button>
           <div class="member-profile-section">
-            <img src="${latestUser.profile_pic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
+            <img src="${latestUser.profilePic || 'https://via.placeholder.com/45'}" class="member-avatar-img" />
             <div>
-              <h4 style="font-size:0.85rem;">${latestUser.full_name}</h4>
+              <h4 style="font-size:0.85rem;">${latestUser.fullName}</h4>
               <span class="member-id-tag">ID: OCM-${latestUser.phone.slice(-4)}</span>
             </div>
           </div>
         </div>
         <div class="member-topbar-right">
-          <div class="notification-bell" onclick="routeUserDashboard(latestUser, 'notifications')">
+          ${isLeader ? `<button class="btn-group-admin" onclick="openGroupLeaderPinModal('${latestUser.phone}')"><i class="fa-solid fa-user-shield"></i> Group Admin</button>` : ''}
+          <div class="notification-bell" onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'notifications')">
             <i class="fa-solid fa-bell"></i>
             <span class="bell-badge">${userNotifications.length}</span>
           </div>
-          <button onclick="renderAuthSelection()" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i></button>
+          <button onclick="logout()" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i></button>
         </div>
       </header>
 
@@ -702,6 +703,31 @@ async function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
           <i class="fa-solid fa-lock"></i> Financial records are read-only for members.
         </div>
       </div>
+
+      <aside class="member-sidebar ${isSidebarOpen ? 'open' : ''}" id="member-sidebar">
+        <div class="sidebar-header">
+          <span>${latestUser.group.toUpperCase()} MENU</span>
+          <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <ul class="sidebar-menu">
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'home'); toggleMemberSidebar();" class="${view === 'home' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-house"></i> Dashboard</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'dues-history'); toggleMemberSidebar();" class="${view === 'dues-history' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-clock-rotate-left"></i> View My Dues History</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'project-levy'); toggleMemberSidebar();" class="${view === 'project-levy' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-diagram-project"></i> View Project Levy</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'attendance'); toggleMemberSidebar();" class="${view === 'attendance' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-calendar-check"></i> Attendance Record</span></a></li>
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'notifications'); toggleMemberSidebar();" class="${view === 'notifications' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-bell"></i> Notifications (${userNotifications.length})</span></a></li>
+          
+          ${isExco ? `
+            <li>
+              <a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'exco-role'); toggleMemberSidebar();" class="${view === 'exco-role' ? 'active' : ''}" style="color:var(--gold-primary);">
+                <span class="menu-item-left"><i class="fa-solid fa-user-gear"></i> My Exco Portal (${latestUser.excoRole})</span>
+              </a>
+            </li>
+          ` : ''}
+
+          <li><a onclick="routeUserDashboard(getUsers().find(u=>u.phone==='${latestUser.phone}'), 'settings'); toggleMemberSidebar();" class="${view === 'settings' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-gear"></i> Settings</span></a></li>
+          <li><a onclick="logout()"><span class="menu-item-left"><i class="fa-solid fa-right-from-bracket"></i> Logout</span></a></li>
+        </ul>
+      </aside>
     </div>
   `;
 }
@@ -737,6 +763,22 @@ function handleAdminLogin(e) {
 function toggleSidebar() {
   const sidebar = document.getElementById("admin-sidebar");
   sidebar.classList.toggle("open");
+
+  let backdrop = document.getElementById("sidebar-backdrop");
+  if (sidebar.classList.contains("open")) {
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "sidebar-backdrop";
+      backdrop.className = "sidebar-backdrop-overlay";
+      backdrop.onclick = () => {
+        sidebar.classList.remove("open");
+        backdrop.remove();
+      };
+      document.body.appendChild(backdrop);
+    }
+  } else {
+    if (backdrop) backdrop.remove();
+  }
 }
 
 function toggleSubMenu(menuId) {
@@ -747,43 +789,144 @@ function toggleSubMenu(menuId) {
 }
 
 // FULL ADMIN DASHBOARD
-async function renderAdminDashboard(view = "home") {
+function renderAdminDashboard(view = "home", isAutoRefresh = false) {
   currentActiveState = { type: 'admin', view: view, user: null };
   const container = document.getElementById("view-container");
   let mainContentHtml = "";
-
-  const { data: supabaseUsers } = await window.supabaseClient.from('users').select('*');
-  const allUsers = supabaseUsers || [];
 
   const duesPayments = getFinancialRecords("omega_dues_payments");
   const groupExpenses = getFinancialRecords("omega_group_expenses");
   const totalDues = duesPayments.reduce((sum, item) => sum + Number(item.amount), 0);
   const totalGroupExpenses = groupExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
 
+  const transactions = getFinancialRecords("omega_transactions");
+  const totalInflow = transactions.filter(t => t.type === 'inflow').reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalHandover = transactions.filter(t => t.type === 'handover').reduce((sum, item) => sum + Number(item.amount), 0);
+  const totalGroupBalance = totalDues + totalInflow + totalHandover - totalGroupExpenses;
+
   if (view === "home") {
     mainContentHtml = `
       <section class="cards-container">
         <div class="balance-card-full">
-          <h4>TOTAL MEMBERS IN DATABASE</h4>
-          <p>${allUsers.length}</p>
-          <small>Combined Men, Women, and Youth Fellowships</small>
+          <h4>TOTAL GROUP BALANCE</h4>
+          <p>₦${totalGroupBalance.toLocaleString()}</p>
+          <small>(Dues + Inflow + Handover - Expenses)</small>
+        </div>
+
+        <div class="admin-cards-grid-2x2">
+          <div class="summary-card">
+            <h4>TOTAL GROUP DUES</h4>
+            <p style="color: var(--gold-primary);">₦${totalDues.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL GROUP INFLOW</h4>
+            <p style="color: var(--success);">₦${totalInflow.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL GROUP HANDOVER</h4>
+            <p style="color: #a855f7;">₦${totalHandover.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL GROUP EXPENSES</h4>
+            <p style="color: var(--danger);">₦${totalGroupExpenses.toLocaleString()}</p>
+          </div>
         </div>
       </section>
     `;
-  } else if (view === "all" || ["men", "women", "youth", "workforce"].includes(view)) {
-    let filteredUsers = allUsers;
-    if (view === "men" || view === "women" || view === "youth") {
-      filteredUsers = allUsers.filter(u => u.group && u.group.toLowerCase() === view);
-    } else if (view === "workforce") {
-      filteredUsers = allUsers.filter(u => u.isWorker);
-    }
+  } else if (["men", "women", "youth", "workforce"].includes(view)) {
+    const fin = calculateGroupFinancials(view);
+    const titleName = view.toUpperCase() + (view === 'workforce' ? '' : ' FELLOWSHIP');
+
+    let rows = fin.members.map((u, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.fullName}</a></td>
+        <td>${u.phone}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>${titleName} FINANCIAL SUMMARY</h3>
+        
+        <div class="balance-card-full">
+          <h4>TOTAL ${view.toUpperCase()} BALANCE</h4>
+          <p>₦${fin.totalBalance.toLocaleString()}</p>
+          <small>(Dues Paid + Levy Paid - Expenses)</small>
+        </div>
+
+        <div class="admin-cards-grid-2x2">
+          <div class="summary-card">
+            <h4>INFLOW</h4>
+            <p style="color: var(--success);">₦${fin.inflow.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES PAID</h4>
+            <p style="color: var(--gold-primary);">₦${fin.duesPaid.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>LEVY PAID</h4>
+            <p style="color: #a855f7;">₦${fin.levyPaid.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>EXPENSES</h4>
+            <p style="color: var(--danger);">₦${fin.expenses.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES ARREARS</h4>
+            <p style="color: var(--danger);">₦${fin.duesArrears.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL LEVY ARREARS</h4>
+            <p style="color: var(--danger);">₦${fin.totalLevyArrears.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <h3>${titleName} Members List</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Workforce / Dept</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No members in this group yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (["all", "dept-sanitation", "dept-security", "dept-usher", "dept-technical", "dept-children", "dept-minister", "dept-choir"].includes(view)) {
+    const users = getUsers();
+    let filteredUsers = users;
+
+    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "sanitation");
+    else if (view === "dept-security") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "security");
+    else if (view === "dept-usher") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "usher");
+    else if (view === "dept-technical") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "technical");
+    else if (view === "dept-children") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "children class");
+    else if (view === "dept-minister") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "minister");
+    else if (view === "dept-choir") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "choir");
+
+    let totalMembersCount = users.length;
 
     let rows = filteredUsers.map((u, index) => `
       <tr>
         <td>${index + 1}</td>
-        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.full_name}</a></td>
+        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.fullName}</a></td>
         <td>${u.phone}</td>
         <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
         <td>
           <div class="btn-action-group">
             <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
@@ -797,11 +940,13 @@ async function renderAdminDashboard(view = "home") {
       <div class="admin-content-area">
         ${view === 'all' ? `
           <div class="balance-card-full" style="margin-bottom: 20px;">
-            <h4>TOTAL REGISTERED MEMBERS</h4>
-            <p>${allUsers.length}</p>
+            <h4>TOTAL REGISTERED MEMBERS (DATABASE)</h4>
+            <p>${totalMembersCount}</p>
+            <small>Men + Women + Youth Fellowships Combined</small>
           </div>
         ` : ''}
-        <h3>Members Directory</h3>
+
+        <h3>${view.toUpperCase().replace('DEPT-', 'WORKFORCE: ')} View</h3>
         <table class="members-table">
           <thead>
             <tr>
@@ -809,39 +954,371 @@ async function renderAdminDashboard(view = "home") {
               <th>Full Name</th>
               <th>Phone</th>
               <th>Group</th>
+              <th>Department</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="5" style="text-align:center;">No records found in database.</td></tr>'}
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found in database.</td></tr>'}
           </tbody>
         </table>
       </div>
     `;
+  } else if (["offering", "tithe", "seed", "building-offering", "church-expenses"].includes(view)) {
+    const recordKey = view === "tithe" ? "omega_tithes" : view === "offering" ? "omega_offerings" : view === "seed" ? "omega_seeds" : view === "building-offering" ? "omega_building_offerings" : "omega_expenses";
+    const currentRecords = getFinancialRecords(recordKey);
+
+    let rows = currentRecords.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.title || r.member || 'General'}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record New ${view.toUpperCase().replace('-', ' ')}</h3>
+        <form onsubmit="addFinancialEntry(event, '${recordKey}', '${view}')" style="margin-bottom: 20px;">
+          <input type="text" id="fin-title" placeholder="Description / Member Name" required />
+          <input type="number" id="fin-amount" placeholder="Amount (₦)" required />
+          <input type="date" id="fin-date" required />
+          <button type="submit" class="btn-primary">Add Record</button>
+        </form>
+
+        <h3>${view.toUpperCase().replace('-', ' ')} History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Description / Member</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "leaders") {
+    const users = getUsers();
+    const groups = ["men", "women", "youth"];
+
+    let leadersGridHtml = groups.map(grpKey => {
+      let leader = users.find(u => u.group && u.group.toLowerCase() === grpKey && u.isGroupLeader);
+      let excos = users.filter(u => u.group && u.group.toLowerCase() === grpKey && u.excoRole);
+
+      return `
+        <div class="leader-card">
+          <h3>${grpKey.toUpperCase()} FELLOWSHIP</h3>
+          ${leader ? `
+            <div class="leader-info-item"><strong>Leader:</strong> ${leader.fullName}</div>
+            <div class="leader-info-item"><strong>Phone:</strong> ${leader.phone}</div>
+            <div class="leader-info-item"><strong>WhatsApp:</strong> ${leader.whatsapp || leader.phone}</div>
+          ` : `<p style="font-size:0.8rem; color:var(--danger);">No Group Leader appointed yet.</p>`}
+
+          <div class="exco-list">
+            <h4 style="font-size:0.75rem; color:var(--gold-primary);">ASSIGNED GROUP EXCOS:</h4>
+            ${excos.map(e => `
+              <div class="exco-item">• <strong>${e.fullName}</strong> (${e.excoRole}) -${e.phone}</div>
+            `).join('') || '<p style="font-size:0.7rem; color:var(--text-muted);">No excos assigned.</p>'}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Assign Group Leaders</h3>
+        <div class="settings-card">
+          <form onsubmit="handleAppointGroupLeader(event)">
+            <label>1. Select Group</label>
+            <select id="leader-group-select" onchange="filterMembersBySelectedGroup(this.value)" required>
+              <option value="">-- Select Group --</option>
+              <option value="men">Men Fellowship</option>
+              <option value="women">Women Fellowship</option>
+              <option value="youth">Youth Fellowship</option>
+            </select>
+
+            <label>2. Search & Select Group Member</label>
+            <select id="leader-member-select" required>
+              <option value="">-- Select Group First --</option>
+            </select>
+
+            <label>3. Assign 7-Digit Leader PIN</label>
+            <input type="password" id="leader-7digit-pin" maxlength="7" minlength="7" placeholder="*******" required />
+
+            <button type="submit" class="btn-primary">Appoint Group Leader & Save PIN</button>
+          </form>
+        </div>
+
+        <h3>Group Leaders & Executive Overview</h3>
+        <div class="two-col-grid">
+          ${leadersGridHtml}
+        </div>
+      </div>
+    `;
+  } else if (view === "projects") {
+    const users = getUsers();
+    let memberOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+    const projects = getFinancialRecords("omega_projects");
+
+    let rows = projects.map((p, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${p.date}</td>
+        <td>${p.memberName}</td>
+        <td>${p.projectName}</td>
+        <td>₦${Number(p.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group / Building Project Contribution</h3>
+        <div class="settings-card">
+          <form onsubmit="handleProjectEntry(event)">
+            <label>Select Member</label>
+            <select id="proj-member-phone" required>
+              <option value="">-- Select Member --</option>
+              ${memberOptions}
+            </select>
+
+            <label>Project / Levy Title</label>
+            <input type="text" id="proj-title" placeholder="e.g. Building Project / Men Annual Levy" required />
+
+            <label>Contribution Amount (₦)</label>
+            <input type="number" id="proj-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="proj-date" required />
+
+            <button type="submit" class="btn-primary">Record Contribution</button>
+          </form>
+        </div>
+
+        <h3>Project Contribution History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Member</th>
+              <th>Project</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No project records found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "group-expenses") {
+    const records = getFinancialRecords("omega_group_expenses");
+
+    let rows = records.map((r, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${r.date}</td>
+        <td>${r.group.toUpperCase()}</td>
+        <td>${r.title}</td>
+        <td>₦${Number(r.amount).toLocaleString()}</td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Record Group Expense</h3>
+        <div class="settings-card">
+          <form onsubmit="handleGroupExpenseEntry(event)">
+            <label>Select Fellowship / Group</label>
+            <select id="grp-exp-group" required>
+              <option value="men">Men Fellowship</option>
+              <option value="women">Women Fellowship</option>
+              <option value="youth">Youth Fellowship</option>
+              <option value="workforce">Workforce</option>
+            </select>
+
+            <label>Expense Description</label>
+            <input type="text" id="grp-exp-title" placeholder="e.g. Welfare / Event Setup" required />
+
+            <label>Amount (₦)</label>
+            <input type="number" id="grp-exp-amount" min="1" required placeholder="5000" />
+
+            <label>Date</label>
+            <input type="date" id="grp-exp-date" required />
+
+            <button type="submit" class="btn-primary">Record Group Expense</button>
+          </form>
+        </div>
+
+        <h3>Group Expense History</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Date</th>
+              <th>Group</th>
+              <th>Description</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No group expenses recorded.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (view === "settings") {
+    const users = getUsers();
+    let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <h3>Settings & Administrative Controls</h3>
+
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-coins"></i> Configure Monthly Dues Rate</h4>
+          <form onsubmit="handleChangeDuesRate(event)">
+            <label>New Monthly Amount (₦)</label>
+            <input type="number" id="new-dues-rate" min="1" required placeholder="e.g. 1000" />
+
+            <label>Effective Month (YYYY-MM)</label>
+            <input type="month" id="dues-effective-month" required />
+
+            <button type="submit" class="btn-primary">Update Dues Rate</button>
+          </form>
+        </div>
+
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-palette"></i> Change Theme</h4>
+          <select onchange="changeTheme(this.value)">
+            <option value="dark">Professional Dark Gold (Default)</option>
+            <option value="light">Professional Light</option>
+          </select>
+        </div>
+
+        <div class="settings-card">
+          <h4><i class="fa-solid fa-key"></i> Reset Member / Leader / Exco PIN</h4>
+          <form onsubmit="handleResetPin(event)">
+            <label>Select User</label>
+            <select id="reset-user-phone" required>
+              <option value="">-- Select User --</option>
+              ${userOptions}
+            </select>
+            <label>New PIN</label>
+            <input type="password" id="reset-new-pin" placeholder="Enter new PIN" required />
+            <button type="submit" class="btn-primary">Update PIN</button>
+          </form>
+        </div>
+      </div>
+    `;
   }
+
+  const isSidebarOpen = document.getElementById("admin-sidebar")?.classList.contains("open");
 
   container.innerHTML = `
     <div class="admin-wrapper">
       <main class="admin-main">
         <header class="admin-topbar">
           <div class="topbar-left">
-            <button class="toggle-btn-topleft" onclick="renderAuthSelection()">
-              <i class="fa-solid fa-house"></i> Home
+            <button class="toggle-btn-topleft" onclick="toggleSidebar()">
+              <i class="fa-solid fa-bars"></i> Menu
             </button>
             <h3>Admin Portal</h3>
           </div>
+          <div class="topbar-right">
+            <div class="notification-bell">
+              <i class="fa-solid fa-bell"></i>
+              <span class="bell-badge">3</span>
+            </div>
+            <div class="admin-profile">
+              <img src="https://via.placeholder.com/36" class="admin-avatar" alt="Admin" />
+              <div class="admin-info">
+                <span>Main Admin</span>
+              </div>
+            </div>
+          </div>
         </header>
+
         ${mainContentHtml}
       </main>
+
+      <aside class="admin-sidebar ${isSidebarOpen ? 'open' : ''}" id="admin-sidebar">
+        <div class="sidebar-header">
+          <span>NAVIGATION</span>
+          <button class="close-sidebar-btn" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <ul class="sidebar-menu">
+          <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-chart-line"></i> Dashboard</span></a></li>
+          
+          <!-- WORKFORCE CATEGORY -->
+          <li>
+            <a onclick="toggleSubMenu('workforce-sub-menu')">
+              <span class="menu-item-left"><i class="fa-solid fa-briefcase"></i> Workforce</span>
+              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+            </a>
+            <ul id="workforce-sub-menu" class="sub-menu-list ${['workforce', 'dept-sanitation', 'dept-security', 'dept-usher', 'dept-technical', 'dept-children', 'dept-minister', 'dept-choir'].includes(view) ? '' : 'hidden'}">
+              <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="sub-menu-item ${view === 'workforce' ? 'active' : ''}">All Workforce</a></li>
+              <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();" class="sub-menu-item ${view === 'dept-sanitation' ? 'active' : ''}">Sanitation</a></li>
+              <li><a onclick="renderAdminDashboard('dept-security'); toggleSidebar();" class="sub-menu-item ${view === 'dept-security' ? 'active' : ''}">Security</a></li>
+              <li><a onclick="renderAdminDashboard('dept-usher'); toggleSidebar();" class="sub-menu-item ${view === 'dept-usher' ? 'active' : ''}">Usher</a></li>
+              <li><a onclick="renderAdminDashboard('dept-technical'); toggleSidebar();" class="sub-menu-item ${view === 'dept-technical' ? 'active' : ''}">Tech Dept</a></li>
+              <li><a onclick="renderAdminDashboard('dept-children'); toggleSidebar();" class="sub-menu-item ${view === 'dept-children' ? 'active' : ''}">Children Class</a></li>
+              <li><a onclick="renderAdminDashboard('dept-minister'); toggleSidebar();" class="sub-menu-item ${view === 'dept-minister' ? 'active' : ''}">Minister</a></li>
+              <li><a onclick="renderAdminDashboard('dept-choir'); toggleSidebar();" class="sub-menu-item ${view === 'dept-choir' ? 'active' : ''}">Choir</a></li>
+            </ul>
+          </li>
+
+          <!-- CHURCH CATEGORY -->
+          <li>
+            <a onclick="toggleSubMenu('church-sub-menu')">
+              <span class="menu-item-left"><i class="fa-solid fa-church"></i> Church</span>
+              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+            </a>
+            <ul id="church-sub-menu" class="sub-menu-list ${['offering', 'tithe', 'seed', 'building-offering', 'church-expenses'].includes(view) ? '' : 'hidden'}">
+              <li><a onclick="renderAdminDashboard('offering'); toggleSidebar();" class="sub-menu-item ${view === 'offering' ? 'active' : ''}">Offering</a></li>
+              <li><a onclick="renderAdminDashboard('tithe'); toggleSidebar();" class="sub-menu-item ${view === 'tithe' ? 'active' : ''}">Tithe</a></li>
+              <li><a onclick="renderAdminDashboard('seed'); toggleSidebar();" class="sub-menu-item ${view === 'seed' ? 'active' : ''}">Seed</a></li>
+              <li><a onclick="renderAdminDashboard('building-offering'); toggleSidebar();" class="sub-menu-item ${view === 'building-offering' ? 'active' : ''}">Building Offering</a></li>
+              <li><a onclick="renderAdminDashboard('church-expenses'); toggleSidebar();" class="sub-menu-item ${view === 'church-expenses' ? 'active' : ''}">Church Expenses</a></li>
+            </ul>
+          </li>
+
+          <!-- GROUPS CATEGORY -->
+          <li>
+            <a onclick="toggleSubMenu('groups-sub-menu')">
+              <span class="menu-item-left"><i class="fa-solid fa-people-group"></i> Groups</span>
+              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+            </a>
+            <ul id="groups-sub-menu" class="sub-menu-list ${['men', 'women', 'youth'].includes(view) ? '' : 'hidden'}">
+              <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="sub-menu-item ${view === 'men' ? 'active' : ''}">Men Fellowship</a></li>
+              <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="sub-menu-item ${view === 'women' ? 'active' : ''}">Women Fellowship</a></li>
+              <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="sub-menu-item ${view === 'youth' ? 'active' : ''}">Youth Fellowship</a></li>
+            </ul>
+          </li>
+
+          <li><a onclick="renderAdminDashboard('leaders'); toggleSidebar();" class="${view === 'leaders' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-user-shield"></i> Assign Group Leaders</span></a></li>
+          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-diagram-project"></i> Group Projects</span></a></li>
+          <li><a onclick="renderAdminDashboard('group-expenses'); toggleSidebar();" class="${view === 'group-expenses' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-receipt"></i> Group Expenses</span></a></li>
+          <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-users"></i> View All Members</span></a></li>
+          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}"><span class="menu-item-left"><i class="fa-solid fa-gear"></i> Settings</span></a></li>
+          <li><a onclick="renderAuthSelection()"><span class="menu-item-left"><i class="fa-solid fa-right-from-bracket"></i> Logout</span></a></li>
+        </ul>
+      </aside>
     </div>
   `;
 }
 
 // MEMBER DETAILS MODAL & ACTIONS
-async function openMemberDetailsModal(phone) {
-  const { data: users } = await window.supabaseClient.from('users').select('*').eq('phone', phone);
-  if (!users || users.length === 0) return;
-  const u = users[0];
+function openMemberDetailsModal(phone) {
+  const users = getUsers();
+  const u = users.find(user => user.phone === phone);
+  if (!u) return;
 
   const modalOverlay = document.createElement("div");
   modalOverlay.className = "modal-overlay";
@@ -854,16 +1331,16 @@ async function openMemberDetailsModal(phone) {
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
         <div style="text-align: center; margin-bottom: 10px;">
-          <img src="${u.profile_pic || 'https://via.placeholder.com/70'}" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--gold-primary); object-fit: cover;" />
+          <img src="${u.profilePic || 'https://via.placeholder.com/70'}" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--gold-primary); object-fit: cover;" />
         </div>
-        <div><strong>Full Name:</strong> ${u.full_name}</div>
+        <div><strong>Full Name:</strong> ${u.fullName}</div>
         <div><strong>Date of Birth:</strong> ${u.dob || 'N/A'}</div>
         <div><strong>Phone Number:</strong> ${u.phone}</div>
         <div><strong>WhatsApp Number:</strong> ${u.whatsapp || u.phone}</div>
         <div><strong>State of Origin:</strong> ${u.origin || 'N/A'}</div>
-        <div><strong>State of Residence:</strong> ${u.residence || 'N/A'}</div>
         <div><strong>House Address:</strong> ${u.address || 'N/A'}</div>
-        <div><strong>Email:</strong> ${u.email || 'N/A'}</div>
+        <div><strong>Fellowship Group:</strong> ${u.group ? u.group.toUpperCase() : 'N/A'}</div>
+        <div><strong>Workforce Dept:</strong> ${u.isWorker ? (u.department || 'Yes') : 'No'}</div>
         
         <div style="display: flex; gap: 10px; margin-top: 15px;">
           <button onclick="document.getElementById('member-detail-modal').remove(); editMember('${u.phone}')" class="btn-primary" style="flex:1;">Edit Member</button>
@@ -875,38 +1352,137 @@ async function openMemberDetailsModal(phone) {
   document.body.appendChild(modalOverlay);
 }
 
-async function deleteMember(phone) {
-  if (confirm("Are you sure you want to delete this member from Supabase?")) {
-    const { error } = await window.supabaseClient.from('users').delete().eq('phone', phone);
-    if (error) {
-      alert("Error deleting member: " + error.message);
-      return;
-    }
-    alert("Member deleted successfully from Supabase.");
-    renderAdminDashboard('all');
+function filterMembersBySelectedGroup(groupKey) {
+  const memberSelect = document.getElementById("leader-member-select");
+  const users = getUsers().filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase());
+
+  if (users.length === 0) {
+    memberSelect.innerHTML = `<option value="">No members found in ${groupKey.toUpperCase()} fellowship</option>`;
+  } else {
+    memberSelect.innerHTML = `<option value="">-- Select Member --</option>` + 
+      users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join('');
   }
 }
 
-async function editMember(phone) {
-  const { data: users } = await window.supabaseClient.from('users').select('*').eq('phone', phone);
-  if (!users || users.length === 0) return;
-  const user = users[0];
+function handleAppointGroupLeader(e) {
+  e.preventDefault();
+  const groupKey = document.getElementById("leader-group-select").value;
+  const phone = document.getElementById("leader-member-select").value;
+  const tempPin = document.getElementById("leader-7digit-pin").value.trim();
 
-  const newName = prompt("Edit Full Name:", user.full_name);
-  if (newName === null) return;
-
-  const { error } = await window.supabaseClient
-    .from('users')
-    .update({ full_name: newName.trim() })
-    .eq('phone', phone);
-
-  if (error) {
-    alert("Error updating member: " + error.message);
+  if (tempPin.length !== 7 || isNaN(tempPin)) {
+    alert("Leader PIN must be exactly 7 numeric digits!");
     return;
   }
 
-  alert("Member details updated successfully in Supabase!");
-  renderAdminDashboard('all');
+  let users = getUsers();
+
+  users.forEach(u => {
+    if (u.group && u.group.toLowerCase() === groupKey.toLowerCase()) u.isGroupLeader = false;
+  });
+
+  let leader = users.find(u => u.phone === phone);
+  if (leader) {
+    leader.isGroupLeader = true;
+    leader.tempLeaderPin = tempPin;
+    leader.hasCustomLeaderPin = false;
+    saveUsers(users);
+
+    let userNotifs = getFinancialRecords(`omega_notifications_${phone}`);
+    userNotifs.unshift({
+      title: "Group Admin Appointment",
+      message: `You have been appointed as the ${groupKey.toUpperCase()} Group Leader. Your temporary 7-Digit PIN is: ${tempPin}. Click the green 'Group Admin' button on your dashboard to complete setup.`,
+      date: new Date().toLocaleString()
+    });
+    saveFinancialRecords(`omega_notifications_${phone}`, userNotifs);
+
+    let groupNotifs = getFinancialRecords(`omega_notifications_${groupKey}`);
+    groupNotifs.unshift({
+      title: "Group Admin Appointment",
+      message: `${leader.fullName} has been appointed as ${groupKey.toUpperCase()} Group Leader.`,
+      date: new Date().toLocaleString()
+    });
+    saveFinancialRecords(`omega_notifications_${groupKey}`, groupNotifs);
+
+    alert(`${leader.fullName} appointed as ${groupKey.toUpperCase()} Group Leader! Temporary 7-Digit PIN sent directly to member's notification inbox.`);
+    renderAdminDashboard("leaders");
+  }
+}
+
+function handleGroupExpenseEntry(e) {
+  e.preventDefault();
+  const group = document.getElementById("grp-exp-group").value;
+  const title = document.getElementById("grp-exp-title").value.trim();
+  const amount = parseFloat(document.getElementById("grp-exp-amount").value);
+  const date = document.getElementById("grp-exp-date").value;
+
+  const records = getFinancialRecords("omega_group_expenses");
+  records.push({ group, title, amount, date });
+
+  saveFinancialRecords("omega_group_expenses", records);
+  alert("Group expense recorded successfully!");
+  renderAdminDashboard("group-expenses");
+}
+
+function handleProjectEntry(e) {
+  e.preventDefault();
+  const phone = document.getElementById("proj-member-phone").value;
+  const projectName = document.getElementById("proj-title").value.trim();
+  const amount = parseFloat(document.getElementById("proj-amount").value);
+  const date = document.getElementById("proj-date").value;
+
+  const users = getUsers();
+  const user = users.find(u => u.phone === phone);
+
+  const projects = getFinancialRecords("omega_projects");
+  projects.push({
+    memberPhone: phone,
+    memberName: user ? user.fullName : "Unknown",
+    projectName,
+    amount,
+    date
+  });
+
+  saveFinancialRecords("omega_projects", projects);
+  alert("Project contribution recorded successfully!");
+  renderAdminDashboard("projects");
+}
+
+function handleChangeDuesRate(e) {
+  e.preventDefault();
+  const rate = parseFloat(document.getElementById("new-dues-rate").value);
+  const monthStr = document.getElementById("dues-effective-month").value;
+
+  if (isNaN(rate) || rate <= 0 || !monthStr) {
+    alert("Invalid rate or effective month!");
+    return;
+  }
+
+  const rates = getDuesRates();
+  rates.push({
+    effectiveFrom: monthStr,
+    rate: rate,
+    admin: "Main Admin",
+    dateSet: new Date().toISOString()
+  });
+
+  saveDuesRates(rates);
+  alert(`New dues rate of ₦${rate.toLocaleString()} set starting ${monthStr}!`);
+  renderAdminDashboard("settings");
+}
+
+function addFinancialEntry(e, key, viewType) {
+  e.preventDefault();
+  const title = document.getElementById("fin-title").value.trim();
+  const amount = document.getElementById("fin-amount").value.trim();
+  const date = document.getElementById("fin-date").value;
+
+  const records = getFinancialRecords(key);
+  records.push({ title, amount, date });
+  saveFinancialRecords(key, records);
+
+  alert(`${viewType.toUpperCase().replace('-', ' ')} record added successfully!`);
+  renderAdminDashboard(viewType);
 }
 
 function changeTheme(theme) {
@@ -915,5 +1491,49 @@ function changeTheme(theme) {
     body.className = "theme-light";
   } else {
     body.className = "theme-dark";
+  }
+}
+
+function handleResetPin(e) {
+  e.preventDefault();
+  const phone = document.getElementById("reset-user-phone").value;
+  const newPin = document.getElementById("reset-new-pin").value.trim();
+
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (user) {
+    user.pin = newPin;
+    saveUsers(users);
+    alert("PIN reset successfully!");
+    renderAdminDashboard("settings");
+  }
+}
+
+function editMember(phone) {
+  let users = getUsers();
+  let user = users.find(u => u.phone === phone);
+  if (!user) return;
+
+  const newName = prompt("Edit Full Name:", user.fullName);
+  if (newName === null) return;
+
+  const newPhone = prompt("Edit Phone Number:", user.phone);
+  if (newPhone === null) return;
+
+  user.fullName = newName.trim();
+  user.phone = newPhone.trim();
+
+  saveUsers(users);
+  alert("Member details updated successfully!");
+  renderAdminDashboard('all');
+}
+
+function deleteMember(phone) {
+  if (confirm("Are you sure you want to delete this member?")) {
+    let users = getUsers();
+    users = users.filter(u => u.phone !== phone);
+    saveUsers(users);
+    alert("Member deleted successfully.");
+    renderAdminDashboard('all');
   }
 }
