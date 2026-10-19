@@ -1071,10 +1071,6 @@ function renderAdminLogin() {
 
 function handleAdminLogin(e) {
   e.preventDefault();
-  const phone = document.getElementById("admin-phone").value.trim();
-  const pin = document.getElementById("admin-pin").value.trim();
-
-  // Fast redirect to Admin Dashboard
   renderAdminDashboard();
 }
 
@@ -1089,7 +1085,6 @@ function renderAdminDashboard(view = "home") {
   const totalDues = duesPayments.reduce((sum, item) => sum + Number(item.amount), 0);
   const totalGroupExpenses = groupExpenses.reduce((sum, item) => sum + Number(item.amount), 0);
 
-  // Group Inflow & Handover from transactions or localstorage settings
   const transactions = getFinancialRecords("omega_transactions");
   const totalInflow = transactions.filter(t => t.type === 'inflow').reduce((sum, item) => sum + Number(item.amount), 0);
   const totalHandover = transactions.filter(t => t.type === 'handover').reduce((sum, item) => sum + Number(item.amount), 0);
@@ -1100,31 +1095,129 @@ function renderAdminDashboard(view = "home") {
   if (view === "home") {
     mainContentHtml = `
       <section class="cards-container">
-        <!-- Highlighted Full-Width Total Group Balance Card -->
+        <!-- Highlighted Premium Balance Banner -->
         <div class="balance-card-full">
-          <h4>Total Group Balance</h4>
+          <h4>TOTAL GROUP BALANCE</h4>
           <p>₦${totalGroupBalance.toLocaleString()}</p>
           <small>(Dues + Inflow + Handover - Expenses)</small>
         </div>
 
-        <!-- 2 by 2 Professional Grid Cards -->
+        <!-- STRICT 2-BY-2 GRID OF CARDS -->
         <div class="admin-cards-grid-2x2">
           <div class="summary-card">
-            <h4>Total Group Dues</h4>
-            <p>₦${totalDues.toLocaleString()}</p>
+            <h4>TOTAL GROUP DUES</h4>
+            <p style="color: var(--gold-primary);">₦${totalDues.toLocaleString()}</p>
           </div>
           <div class="summary-card">
-            <h4>Total Group Inflow</h4>
+            <h4>TOTAL GROUP INFLOW</h4>
             <p style="color: var(--success);">₦${totalInflow.toLocaleString()}</p>
           </div>
           <div class="summary-card">
-            <h4>Total Group Handover</h4>
-            <p style="color: #9333ea;">₦${totalHandover.toLocaleString()}</p>
+            <h4>TOTAL GROUP HANDOVER</h4>
+            <p style="color: #a855f7;">₦${totalHandover.toLocaleString()}</p>
           </div>
           <div class="summary-card">
-            <h4>Total Group Expenses</h4>
+            <h4>TOTAL GROUP EXPENSES</h4>
             <p style="color: var(--danger);">₦${totalGroupExpenses.toLocaleString()}</p>
           </div>
+        </div>
+      </section>
+    `;
+  } else if (view === "men") {
+    // MEN FELLOWSHIP CALCULATIONS
+    const users = getUsers().filter(u => u.group === "men");
+    const menDuesPayments = duesPayments.filter(p => users.some(u => u.phone === p.memberPhone));
+    const menDuesPaid = menDuesPayments.reduce((s, p) => s + Number(p.amount), 0);
+
+    const projects = getFinancialRecords("omega_projects");
+    const menProjects = projects.filter(p => users.some(u => u.phone === p.memberPhone));
+    const menLevyPaid = menProjects.reduce((s, p) => s + Number(p.amount), 0);
+
+    const menExpensesList = groupExpenses.filter(e => e.group === "men");
+    const menExpenses = menExpensesList.reduce((s, e) => s + Number(e.amount), 0);
+
+    // Inflow = Dues Paid + Levy Paid
+    const menInflow = menDuesPaid + menLevyPaid;
+    // Total Men Balance = Inflow - Expenses
+    const totalMenBalance = menInflow - menExpenses;
+
+    let menDuesArrears = 0;
+    users.forEach(u => {
+      let calc = calculateMemberDues(u.phone);
+      menDuesArrears += calc.amountOwing;
+    });
+
+    // Total Levy Arrears (Default or calculated from required levy targets)
+    const totalLevyArrears = Number(localStorage.getItem("omega_men_levy_arrears")) || 0;
+
+    let rows = users.map((u, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${u.fullName}</td>
+        <td>${u.phone}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <section class="cards-container">
+        <!-- Highlight Banner: Total Men Balance -->
+        <div class="balance-card-full">
+          <h4>TOTAL MEN BALANCE</h4>
+          <p>₦${totalMenBalance.toLocaleString()}</p>
+          <small>(Inflow: Dues Paid + Levy Paid - Expenses)</small>
+        </div>
+
+        <!-- 2-BY-2 GRID OF MEN FELLOWSHIP CARDS -->
+        <div class="admin-cards-grid-2x2">
+          <div class="summary-card">
+            <h4>INFLOW</h4>
+            <p style="color: var(--success);">₦${menInflow.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES PAID</h4>
+            <p style="color: var(--gold-primary);">₦${menDuesPaid.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>LEVY PAID</h4>
+            <p style="color: #3b82f6;">₦${menLevyPaid.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES ARREARS</h4>
+            <p style="color: var(--danger);">₦${menDuesArrears.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL LEVY ARREARS</h4>
+            <p style="color: #f97316;">₦${totalLevyArrears.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>EXPENSES</h4>
+            <p style="color: #ef4444;">₦${menExpenses.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div class="admin-content-area" style="padding: 20px 0 0 0;">
+          <h3>Men Fellowship Members List</h3>
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>S/N</th>
+                <th>Full Name</th>
+                <th>Phone</th>
+                <th>Worker / Dept</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="5" style="text-align:center;">No members found in Men Fellowship.</td></tr>'}
+            </tbody>
+          </table>
         </div>
       </section>
     `;
@@ -1186,12 +1279,11 @@ function renderAdminDashboard(view = "home") {
         </div>
       </div>
     `;
-  } else if (["all", "men", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
+  } else if (["all", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
 
-    if (view === "men") filteredUsers = users.filter(u => u.group === "men");
-    else if (view === "women") filteredUsers = users.filter(u => u.group === "women");
+    if (view === "women") filteredUsers = users.filter(u => u.group === "women");
     else if (view === "youth") filteredUsers = users.filter(u => u.group === "youth");
     else if (view === "workforce") filteredUsers = users.filter(u => u.isWorker);
     else if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department === "Sanitation");
