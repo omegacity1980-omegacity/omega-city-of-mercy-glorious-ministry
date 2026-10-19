@@ -48,7 +48,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Database Helpers
 function getUsers() {
-  return JSON.parse(localStorage.getItem("omega_users")) || [];
+  const data = localStorage.getItem("omega_users");
+  if (!data) return [];
+  try {
+    return JSON.parse(data) || [];
+  } catch (err) {
+    return [];
+  }
 }
 
 function saveUsers(users) {
@@ -56,7 +62,13 @@ function saveUsers(users) {
 }
 
 function getFinancialRecords(key) {
-  return JSON.parse(localStorage.getItem(key)) || [];
+  const data = localStorage.getItem(key);
+  if (!data) return [];
+  try {
+    return JSON.parse(data) || [];
+  } catch (err) {
+    return [];
+  }
 }
 
 function saveFinancialRecords(key, data) {
@@ -503,7 +515,7 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
   currentActiveState = { type: 'member', view: view, user: latestUser };
   
   const container = document.getElementById("view-container");
-  let groupTitle = `${latestUser.group.toUpperCase()} FELLOWSHIP`;
+  let groupTitle = `${latestUser.group ? latestUser.group.toUpperCase() : 'MEMBER'} FELLOWSHIP`;
 
   const financials = calculateMemberDues(latestUser.phone);
   const projectsData = calculateMemberProjects(latestUser.phone);
@@ -651,8 +663,6 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
         </table>
       </div>
     `;
-  } else if (view === 'exco-role') {
-    mainBodyContent = renderExcoPortalView(latestUser);
   } else if (view === 'settings') {
     mainBodyContent = `
       <div class="admin-content-area" style="padding: 0;">
@@ -706,7 +716,7 @@ function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
 
       <aside class="member-sidebar ${isSidebarOpen ? 'open' : ''}" id="member-sidebar">
         <div class="sidebar-header">
-          <span>${latestUser.group.toUpperCase()} MENU</span>
+          <span>${latestUser.group ? latestUser.group.toUpperCase() : 'MEMBER'} MENU</span>
           <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <ul class="sidebar-menu">
