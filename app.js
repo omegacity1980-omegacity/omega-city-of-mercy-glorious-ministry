@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 6000);
 
-  // Silent Background Auto-Refresh
+  // Silent Background Auto-Refresh (Safe State Preservation)
   setInterval(() => {
     performSilentAutoRefresh();
   }, 3000);
@@ -840,7 +840,7 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
     let rows = fin.members.map((u, index) => `
       <tr>
         <td>${index + 1}</td>
-        <td><a onclick="showMemberDetailModal('${u.phone}')" style="color:var(--gold-primary); text-decoration:underline; cursor:pointer;">${u.fullName}</a></td>
+        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.fullName}</a></td>
         <td>${u.phone}</td>
         <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
         <td>
@@ -906,62 +906,7 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
         </table>
       </div>
     `;
-  } else if (view === "all") {
-    // ENHANCED VIEW ALL MEMBERS - GROUPED BY MEN, WOMEN, YOUTH
-    const users = getUsers();
-    const men = users.filter(u => u.group && u.group.toLowerCase() === "men");
-    const women = users.filter(u => u.group && u.group.toLowerCase() === "women");
-    const youth = users.filter(u => u.group && u.group.toLowerCase() === "youth");
-
-    function renderGroupTable(groupMembers, groupName) {
-      let rows = groupMembers.map((u, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td><a onclick="showMemberDetailModal('${u.phone}')" style="color:var(--gold-primary); text-decoration:underline; font-weight:bold; cursor:pointer;">${u.fullName}</a></td>
-          <td>${u.phone}</td>
-          <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
-          <td>
-            <div class="btn-action-group">
-              <button onclick="showMemberDetailModal('${u.phone}')" class="btn-sm-edit"><i class="fa-solid fa-eye"></i> View</button>
-              <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
-              <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
-            </div>
-          </td>
-        </tr>
-      `).join("");
-
-      return `
-        <div class="settings-card" style="margin-bottom: 25px;">
-          <h4 style="color:var(--gold-primary); margin-bottom:12px;"><i class="fa-solid fa-users"></i> ${groupName.toUpperCase()} FELLOWSHIP (${groupMembers.length})</h4>
-          <table class="members-table">
-            <thead>
-              <tr>
-                <th>S/N</th>
-                <th>Full Name (Click to View)</th>
-                <th>Phone</th>
-                <th>Workforce / Dept</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows || '<tr><td colspan="5" style="text-align:center;">No members registered in this fellowship.</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
-
-    mainContentHtml = `
-      <div class="admin-content-area">
-        <h3>ALL CHURCH MEMBERS BY FELLOWSHIP</h3>
-        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:15px;">Click on any member's name to view full profile details (DOB, State of Origin, Address, etc.).</p>
-        
-        ${renderGroupTable(men, "Men Fellowship")}
-        ${renderGroupTable(women, "Women Fellowship")}
-        ${renderGroupTable(youth, "Youth Fellowship")}
-      </div>
-    `;
-  } else if (["dept-sanitation", "dept-security", "dept-usher", "dept-technical", "dept-children", "dept-minister", "dept-choir"].includes(view)) {
+  } else if (["all", "dept-sanitation", "dept-security", "dept-usher", "dept-technical", "dept-children", "dept-minister", "dept-choir"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
 
@@ -973,10 +918,12 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
     else if (view === "dept-minister") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "minister");
     else if (view === "dept-choir") filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === "choir");
 
+    let totalMembersCount = users.length;
+
     let rows = filteredUsers.map((u, index) => `
       <tr>
         <td>${index + 1}</td>
-        <td><a onclick="showMemberDetailModal('${u.phone}')" style="color:var(--gold-primary); text-decoration:underline; cursor:pointer;">${u.fullName}</a></td>
+        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.fullName}</a></td>
         <td>${u.phone}</td>
         <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
         <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
@@ -991,6 +938,14 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
 
     mainContentHtml = `
       <div class="admin-content-area">
+        ${view === 'all' ? `
+          <div class="balance-card-full" style="margin-bottom: 20px;">
+            <h4>TOTAL REGISTERED MEMBERS (DATABASE)</h4>
+            <p>${totalMembersCount}</p>
+            <small>Men + Women + Youth Fellowships Combined</small>
+          </div>
+        ` : ''}
+
         <h3>${view.toUpperCase().replace('DEPT-', 'WORKFORCE: ')} View</h3>
         <table class="members-table">
           <thead>
@@ -1004,7 +959,7 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found in database.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -1213,7 +1168,7 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="4" style="text-align:center;">No group expenses recorded.</td></tr>'}
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No group expenses recorded.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -1359,54 +1314,42 @@ function renderAdminDashboard(view = "home", isAutoRefresh = false) {
   `;
 }
 
-// MEMBER DETAIL MODAL
-function showMemberDetailModal(phone) {
+// MEMBER DETAILS MODAL & ACTIONS
+function openMemberDetailsModal(phone) {
   const users = getUsers();
-  const user = users.find(u => u.phone === phone);
-  if (!user) {
-    alert("Member profile not found!");
-    return;
-  }
+  const u = users.find(user => user.phone === phone);
+  if (!u) return;
 
-  const modalHtml = `
-    <div class="modal-overlay" id="member-detail-modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>MEMBER PROFILE DETAILS</h3>
-          <button onclick="closeMemberDetailModal()" class="close-sidebar-btn"><i class="fa-solid fa-xmark"></i></button>
+  const modalOverlay = document.createElement("div");
+  modalOverlay.className = "modal-overlay";
+  modalOverlay.id = "member-detail-modal";
+  modalOverlay.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Member Profile</h3>
+        <button class="close-sidebar-btn" onclick="document.getElementById('member-detail-modal').remove()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
+        <div style="text-align: center; margin-bottom: 10px;">
+          <img src="${u.profilePic || 'https://via.placeholder.com/70'}" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--gold-primary); object-fit: cover;" />
         </div>
+        <div><strong>Full Name:</strong> ${u.fullName}</div>
+        <div><strong>Date of Birth:</strong> ${u.dob || 'N/A'}</div>
+        <div><strong>Phone Number:</strong> ${u.phone}</div>
+        <div><strong>WhatsApp Number:</strong> ${u.whatsapp || u.phone}</div>
+        <div><strong>State of Origin:</strong> ${u.origin || 'N/A'}</div>
+        <div><strong>House Address:</strong> ${u.address || 'N/A'}</div>
+        <div><strong>Fellowship Group:</strong> ${u.group ? u.group.toUpperCase() : 'N/A'}</div>
+        <div><strong>Workforce Dept:</strong> ${u.isWorker ? (u.department || 'Yes') : 'No'}</div>
         
-        <div class="member-detail-body">
-          <div style="text-align:center; margin-bottom:15px;">
-            <img src="${user.profilePic || 'https://via.placeholder.com/80'}" style="width:80px; height:80px; border-radius:50%; border:2px solid var(--gold-primary); object-fit:cover;" />
-            <h3 style="color:var(--gold-primary); font-size:1.1rem; margin-top:8px;">${user.fullName}</h3>
-            <span class="badge paid">${(user.group || 'GENERAL').toUpperCase()} FELLOWSHIP</span>
-          </div>
-
-          <div class="detail-row"><strong>Phone Number:</strong> <span>${user.phone}</span></div>
-          <div class="detail-row"><strong>WhatsApp Number:</strong> <span>${user.whatsapp || user.phone}</span></div>
-          <div class="detail-row"><strong>Email Address:</strong> <span>${user.email || 'N/A'}</span></div>
-          <div class="detail-row"><strong>Date of Birth:</strong> <span>${user.dob || 'N/A'}</span></div>
-          <div class="detail-row"><strong>State of Origin:</strong> <span>${user.origin || 'N/A'}</span></div>
-          <div class="detail-row"><strong>State of Residence:</strong> <span>${user.residence || 'N/A'}</span></div>
-          <div class="detail-row"><strong>House Address:</strong> <span>${user.address || 'N/A'}</span></div>
-          <div class="detail-row"><strong>Workforce Status:</strong> <span>${user.isWorker ? (user.department || 'Yes') : 'No'}</span></div>
-
-          <div style="display:flex; gap:10px; margin-top:20px;">
-            <button onclick="closeMemberDetailModal(); editMember('${user.phone}');" class="btn-primary" style="flex:1;">Edit Details</button>
-            <button onclick="closeMemberDetailModal(); deleteMember('${user.phone}');" class="btn-secondary" style="flex:1; border-color:var(--danger); color:var(--danger);">Delete Member</button>
-          </div>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button onclick="document.getElementById('member-detail-modal').remove(); editMember('${u.phone}')" class="btn-primary" style="flex:1;">Edit Member</button>
+          <button onclick="document.getElementById('member-detail-modal').remove(); deleteMember('${u.phone}')" class="btn-secondary" style="flex:1; border-color:var(--danger); color:var(--danger);">Delete Member</button>
         </div>
       </div>
     </div>
   `;
-
-  document.body.insertAdjacentHTML("beforeend", modalHtml);
-}
-
-function closeMemberDetailModal() {
-  const modal = document.getElementById("member-detail-modal");
-  if (modal) modal.remove();
+  document.body.appendChild(modalOverlay);
 }
 
 function filterMembersBySelectedGroup(groupKey) {
@@ -1586,7 +1529,7 @@ function editMember(phone) {
 }
 
 function deleteMember(phone) {
-  if (confirm("Are you sure you want to delete this member account?")) {
+  if (confirm("Are you sure you want to delete this member?")) {
     let users = getUsers();
     users = users.filter(u => u.phone !== phone);
     saveUsers(users);
