@@ -135,6 +135,59 @@ function calculateMemberProjects(phone) {
   };
 }
 
+// Helper to calculate Group Financial Metrics
+function calculateGroupFinancials(groupKey) {
+  const users = getUsers();
+  let groupMembers = [];
+
+  if (groupKey === "workforce") {
+    groupMembers = users.filter(u => u.isWorker);
+  } else {
+    groupMembers = users.filter(u => u.group === groupKey);
+  }
+
+  const duesPayments = getFinancialRecords("omega_dues_payments");
+  const duesPaid = duesPayments
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const projects = getFinancialRecords("omega_projects");
+  const levyPaid = projects
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
+    .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const groupExpensesRecords = getFinancialRecords("omega_group_expenses");
+  const expenses = groupExpensesRecords
+    .filter(e => e.group === groupKey)
+    .reduce((sum, e) => sum + Number(e.amount), 0);
+
+  let duesArrears = 0;
+  groupMembers.forEach(m => {
+    let calc = calculateMemberDues(m.phone);
+    duesArrears += calc.amountOwing;
+  });
+
+  // Calculate Total Levy Arrears from setting or records
+  const totalLevyArrears = Number(localStorage.getItem(`omega_levy_arrears_${groupKey}`)) || 0;
+
+  // Inflow = Dues Paid + Levy Paid
+  const inflow = duesPaid + levyPaid;
+
+  // Total Group Balance = Dues Paid + Levy Paid - Expenses
+  const totalBalance = inflow - expenses;
+
+  return {
+    inflow,
+    duesPaid,
+    levyPaid,
+    duesArrears,
+    totalLevyArrears,
+    expenses,
+    totalBalance,
+    members: groupMembers
+  };
+}
+
 // Render Authentication Choice Screen
 function renderAuthSelection() {
   const container = document.getElementById("view-container");
@@ -1123,34 +1176,11 @@ function renderAdminDashboard(view = "home") {
         </div>
       </section>
     `;
-  } else if (view === "men") {
-    // MEN FELLOWSHIP CALCULATIONS
-    const users = getUsers().filter(u => u.group === "men");
-    const menDuesPayments = duesPayments.filter(p => users.some(u => u.phone === p.memberPhone));
-    const menDuesPaid = menDuesPayments.reduce((s, p) => s + Number(p.amount), 0);
+  } else if (["men", "women", "youth", "workforce"].includes(view)) {
+    const fin = calculateGroupFinancials(view);
+    const titleName = view.toUpperCase() + (view === 'workforce' ? '' : ' FELLOWSHIP');
 
-    const projects = getFinancialRecords("omega_projects");
-    const menProjects = projects.filter(p => users.some(u => u.phone === p.memberPhone));
-    const menLevyPaid = menProjects.reduce((s, p) => s + Number(p.amount), 0);
-
-    const menExpensesList = groupExpenses.filter(e => e.group === "men");
-    const menExpenses = menExpensesList.reduce((s, e) => s + Number(e.amount), 0);
-
-    // Inflow = Dues Paid + Levy Paid
-    const menInflow = menDuesPaid + menLevyPaid;
-    // Total Men Balance = Inflow - Expenses
-    const totalMenBalance = menInflow - menExpenses;
-
-    let menDuesArrears = 0;
-    users.forEach(u => {
-      let calc = calculateMemberDues(u.phone);
-      menDuesArrears += calc.amountOwing;
-    });
-
-    // Total Levy Arrears (Default or calculated from required levy targets)
-    const totalLevyArrears = Number(localStorage.getItem("omega_men_levy_arrears")) || 0;
-
-    let rows = users.map((u, index) => `
+    let rows = fin.members.map((u, index) => `
       <tr>
         <td>${index + 1}</td>
         <td>${u.fullName}</td>
@@ -1166,60 +1196,60 @@ function renderAdminDashboard(view = "home") {
     `).join("");
 
     mainContentHtml = `
-      <section class="cards-container">
-        <!-- Highlight Banner: Total Men Balance -->
+      <div class="admin-content-area">
+        <h3>${titleName} FINANCIAL SUMMARY</h3>
+        
+        <!-- Highlight Banner: Total Group Balance -->
         <div class="balance-card-full">
-          <h4>TOTAL MEN BALANCE</h4>
-          <p>₦${totalMenBalance.toLocaleString()}</p>
-          <small>(Inflow: Dues Paid + Levy Paid - Expenses)</small>
+          <h4>TOTAL ${view.toUpperCase()} BALANCE</h4>
+          <p>₦${fin.totalBalance.toLocaleString()}</p>
+          <small>(Dues Paid + Levy Paid - Expenses)</small>
         </div>
 
-        <!-- 2-BY-2 GRID OF MEN FELLOWSHIP CARDS -->
+        <!-- STRICT 2-BY-2 GRID OF CARDS -->
         <div class="admin-cards-grid-2x2">
           <div class="summary-card">
             <h4>INFLOW</h4>
-            <p style="color: var(--success);">₦${menInflow.toLocaleString()}</p>
+            <p style="color: var(--success);">₦${fin.inflow.toLocaleString()}</p>
           </div>
           <div class="summary-card">
             <h4>DUES PAID</h4>
-            <p style="color: var(--gold-primary);">₦${menDuesPaid.toLocaleString()}</p>
+            <p style="color: var(--gold-primary);">₦${fin.duesPaid.toLocaleString()}</p>
           </div>
           <div class="summary-card">
             <h4>LEVY PAID</h4>
-            <p style="color: #3b82f6;">₦${menLevyPaid.toLocaleString()}</p>
-          </div>
-          <div class="summary-card">
-            <h4>DUES ARREARS</h4>
-            <p style="color: var(--danger);">₦${menDuesArrears.toLocaleString()}</p>
-          </div>
-          <div class="summary-card">
-            <h4>TOTAL LEVY ARREARS</h4>
-            <p style="color: #f97316;">₦${totalLevyArrears.toLocaleString()}</p>
+            <p style="color: #a855f7;">₦${fin.levyPaid.toLocaleString()}</p>
           </div>
           <div class="summary-card">
             <h4>EXPENSES</h4>
-            <p style="color: #ef4444;">₦${menExpenses.toLocaleString()}</p>
+            <p style="color: var(--danger);">₦${fin.expenses.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>DUES ARREARS</h4>
+            <p style="color: var(--danger);">₦${fin.duesArrears.toLocaleString()}</p>
+          </div>
+          <div class="summary-card">
+            <h4>TOTAL LEVY ARREARS</h4>
+            <p style="color: var(--danger);">₦${fin.totalLevyArrears.toLocaleString()}</p>
           </div>
         </div>
 
-        <div class="admin-content-area" style="padding: 20px 0 0 0;">
-          <h3>Men Fellowship Members List</h3>
-          <table class="members-table">
-            <thead>
-              <tr>
-                <th>S/N</th>
-                <th>Full Name</th>
-                <th>Phone</th>
-                <th>Worker / Dept</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows || '<tr><td colspan="5" style="text-align:center;">No members found in Men Fellowship.</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <h3>${titleName} Members List</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Workforce / Dept</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="5" style="text-align:center;">No members in this group yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     `;
   } else if (view === "leaders") {
     const users = getUsers();
@@ -1279,14 +1309,11 @@ function renderAdminDashboard(view = "home") {
         </div>
       </div>
     `;
-  } else if (["all", "women", "youth", "workforce", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
+  } else if (["all", "dept-sanitation", "dept-technical", "dept-security", "dept-choir", "dept-usher", "dept-children"].includes(view)) {
     const users = getUsers();
     let filteredUsers = users;
 
-    if (view === "women") filteredUsers = users.filter(u => u.group === "women");
-    else if (view === "youth") filteredUsers = users.filter(u => u.group === "youth");
-    else if (view === "workforce") filteredUsers = users.filter(u => u.isWorker);
-    else if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department === "Sanitation");
+    if (view === "dept-sanitation") filteredUsers = users.filter(u => u.department === "Sanitation");
     else if (view === "dept-technical") filteredUsers = users.filter(u => u.department === "Technical");
     else if (view === "dept-security") filteredUsers = users.filter(u => u.department === "Security");
     else if (view === "dept-choir") filteredUsers = users.filter(u => u.department === "Choir");
