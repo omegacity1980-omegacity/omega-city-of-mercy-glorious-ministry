@@ -1,3 +1,5 @@
+let currentActiveState = { type: 'guest', view: 'home', user: null };
+
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
@@ -19,6 +21,11 @@ document.addEventListener("DOMContentLoaded", () => {
       renderAuthSelection();
     }
   }, 6000);
+
+  // Silent Background Auto-Refresh Every 3 Seconds (3000ms)
+  setInterval(() => {
+    performSilentAutoRefresh();
+  }, 3000);
 });
 
 // Database Helpers
@@ -180,8 +187,35 @@ function calculateGroupFinancials(groupKey) {
   };
 }
 
+// Silent Auto Refresh Engine
+function performSilentAutoRefresh() {
+  // Do not re-render if user is currently typing in an input field or modal open
+  if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+    return;
+  }
+  if (document.querySelector('.modal-overlay')) {
+    return;
+  }
+
+  if (currentActiveState.type === 'member' && currentActiveState.user) {
+    const updatedUser = getUsers().find(u => u.phone === currentActiveState.user.phone);
+    if (updatedUser) {
+      currentActiveState.user = updatedUser;
+      routeUserDashboard(updatedUser, currentActiveState.view, true);
+    }
+  } else if (currentActiveState.type === 'admin') {
+    renderAdminDashboard(currentActiveState.view, true);
+  } else if (currentActiveState.type === 'leader' && currentActiveState.user) {
+    const updatedLeader = getUsers().find(u => u.phone === currentActiveState.user.phone);
+    if (updatedLeader) {
+      renderGroupLeaderDashboard(updatedLeader, currentActiveState.view, true);
+    }
+  }
+}
+
 // Authentication Selection
 function renderAuthSelection() {
+  currentActiveState = { type: 'guest', view: 'home', user: null };
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
@@ -200,6 +234,7 @@ function renderAuthSelection() {
 
 // MEMBER LOGIN
 function renderLogin() {
+  currentActiveState = { type: 'guest', view: 'login', user: null };
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
@@ -239,6 +274,7 @@ function handleLogin(e) {
 
 // MEMBER REGISTRATION FUNNEL - STEP 1
 function renderRegistrationStep1() {
+  currentActiveState = { type: 'guest', view: 'reg1', user: null };
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
@@ -289,6 +325,7 @@ function handleRegStep1(e) {
 
 // MEMBER REGISTRATION FUNNEL - STEP 2
 function renderRegistrationStep2() {
+  currentActiveState = { type: 'guest', view: 'reg2', user: null };
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
@@ -391,6 +428,7 @@ function handleRegStep2(e) {
 
 // MEMBER REGISTRATION FUNNEL - STEP 3
 function renderRegistrationStep3() {
+  currentActiveState = { type: 'guest', view: 'reg3', user: null };
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
@@ -451,7 +489,8 @@ function handleFinalRegistration(e) {
 }
 
 // MEMBER DASHBOARD ROUTING
-function routeUserDashboard(user, view = 'home') {
+function routeUserDashboard(user, view = 'home', isAutoRefresh = false) {
+  currentActiveState = { type: 'member', view: view, user: user };
   const container = document.getElementById("view-container");
   let groupTitle = `${user.group.toUpperCase()} FELLOWSHIP`;
 
@@ -621,6 +660,9 @@ function routeUserDashboard(user, view = 'home') {
   const isLeader = user.isGroupLeader;
   const isExco = user.excoRole;
 
+  // Preserve sidebar open state during auto-refresh
+  const isSidebarOpen = document.getElementById("member-sidebar")?.classList.contains("open");
+
   container.innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
@@ -653,7 +695,7 @@ function routeUserDashboard(user, view = 'home') {
         </div>
       </div>
 
-      <aside class="member-sidebar" id="member-sidebar">
+      <aside class="member-sidebar ${isSidebarOpen ? 'open' : ''}" id="member-sidebar">
         <div class="sidebar-header">
           <span>${user.group.toUpperCase()} MENU</span>
           <button class="close-sidebar-btn" onclick="toggleMemberSidebar()"><i class="fa-solid fa-xmark"></i></button>
@@ -750,7 +792,8 @@ function handleLeaderPinReset(e, phone) {
 }
 
 // GROUP LEADER DASHBOARD
-function renderGroupLeaderDashboard(leader, view = 'members') {
+function renderGroupLeaderDashboard(leader, view = 'members', isAutoRefresh = false) {
+  currentActiveState = { type: 'leader', view: view, user: leader };
   const container = document.getElementById("view-container");
   const users = getUsers().filter(u => u.group === leader.group);
 
@@ -823,6 +866,8 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
     `;
   }
 
+  const isSidebarOpen = document.getElementById("leader-sidebar")?.classList.contains("open");
+
   container.innerHTML = `
     <div class="admin-wrapper">
       <main class="admin-main">
@@ -843,7 +888,7 @@ function renderGroupLeaderDashboard(leader, view = 'members') {
         </div>
       </main>
 
-      <aside class="admin-sidebar" id="leader-sidebar">
+      <aside class="admin-sidebar ${isSidebarOpen ? 'open' : ''}" id="leader-sidebar">
         <div class="sidebar-header">
           <span>LEADER MENU</span>
           <button class="close-sidebar-btn" onclick="toggleLeaderSidebar()"><i class="fa-solid fa-xmark"></i></button>
@@ -1046,6 +1091,7 @@ function logout() {
 
 // MAIN ADMIN LOGIN & DASHBOARD
 function renderAdminLogin() {
+  currentActiveState = { type: 'guest', view: 'admin-login', user: null };
   const container = document.getElementById("view-container");
   container.innerHTML = `
     <div class="auth-box">
@@ -1072,7 +1118,8 @@ function handleAdminLogin(e) {
 }
 
 // FULL ADMIN DASHBOARD WITH COMPLETE SIDEBAR NAVIGATION
-function renderAdminDashboard(view = "home") {
+function renderAdminDashboard(view = "home", isAutoRefresh = false) {
+  currentActiveState = { type: 'admin', view: view, user: null };
   const container = document.getElementById("view-container");
   let mainContentHtml = "";
 
@@ -1524,6 +1571,8 @@ function renderAdminDashboard(view = "home") {
     `;
   }
 
+  const isSidebarOpen = document.getElementById("admin-sidebar")?.classList.contains("open");
+
   container.innerHTML = `
     <div class="admin-wrapper">
       <main class="admin-main">
@@ -1551,7 +1600,7 @@ function renderAdminDashboard(view = "home") {
         ${mainContentHtml}
       </main>
 
-      <aside class="admin-sidebar" id="admin-sidebar">
+      <aside class="admin-sidebar ${isSidebarOpen ? 'open' : ''}" id="admin-sidebar">
         <div class="sidebar-header">
           <span>NAVIGATION</span>
           <button class="close-sidebar-btn" onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button>
@@ -1623,16 +1672,25 @@ function handleAppointGroupLeader(e) {
     leader.hasCustomLeaderPin = false;
     saveUsers(users);
 
-    // Send notification to member
+    // 1. Send direct notification to member's personal dashboard inbox
     let userNotifs = getFinancialRecords(`omega_notifications_${phone}`);
     userNotifs.unshift({
       title: "Group Admin Appointment",
-      message: `You have been appointed as the ${groupKey.toUpperCase()} Group Leader. Your temporary 7-Digit PIN is: ${tempPin}. Click 'Group Admin' button on your dashboard to complete setup.`,
+      message: `You have been appointed as the ${groupKey.toUpperCase()} Group Leader. Your temporary 7-Digit PIN is: ${tempPin}. Click the green 'Group Admin' button on your dashboard to complete setup.`,
       date: new Date().toLocaleString()
     });
     saveFinancialRecords(`omega_notifications_${phone}`, userNotifs);
 
-    alert(`${leader.fullName} appointed as ${groupKey.toUpperCase()} Group Leader! Temporary 7-Digit PIN sent to member's notification.`);
+    // 2. Also send broadcast record to group array
+    let groupNotifs = getFinancialRecords(`omega_notifications_${groupKey}`);
+    groupNotifs.unshift({
+      title: "Group Admin Appointment",
+      message: `${leader.fullName} has been appointed as ${groupKey.toUpperCase()} Group Leader.`,
+      date: new Date().toLocaleString()
+    });
+    saveFinancialRecords(`omega_notifications_${groupKey}`, groupNotifs);
+
+    alert(`${leader.fullName} appointed as ${groupKey.toUpperCase()} Group Leader! Temporary 7-Digit PIN sent directly to member's notification inbox.`);
     renderAdminDashboard("leaders");
   }
 }
