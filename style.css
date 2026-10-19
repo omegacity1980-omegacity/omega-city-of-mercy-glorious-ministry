@@ -342,12 +342,12 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
 }
 
-/* SIDEBAR RESTYLED - PREMIUM & SLIM (260px) */
+/* SIDEBAR RESTYLED - PERFECT LEFT-ALIGNED & SLIM (240px) */
 .admin-sidebar, .member-sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 260px;
+  width: 240px;
   height: 100vh;
   background: var(--card-bg);
   border-right: 1px solid var(--card-border);
@@ -363,19 +363,12 @@ input:focus, select:focus, textarea:focus {
   transform: translateX(0);
 }
 
-/* BACKDROP OVERLAY FOR CLICK-ANYWHERE TO CLOSE */
 .sidebar-backdrop-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   z-index: 999;
   backdrop-filter: blur(2px);
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .sidebar-header {
@@ -405,23 +398,27 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
 }
 
+/* STRICT LEFT ALIGNMENT FOR ALL MENU ITEMS */
 .sidebar-menu li a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 11px 16px;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   font-weight: 500;
   transition: all 0.2s ease;
   cursor: pointer;
+  text-align: left;
 }
 
 .menu-item-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  text-align: left;
 }
 
 .sidebar-menu li a i {
@@ -442,25 +439,30 @@ input:focus, select:focus, textarea:focus {
   list-style: none;
   background: rgba(0, 0, 0, 0.25);
   border-left: 2px solid var(--card-border);
-  margin-left: 20px;
+  margin-left: 22px;
   padding: 4px 0;
 }
 
 .sub-menu-item {
-  padding: 9px 14px 9px 16px !important;
-  font-size: 0.8rem !important;
+  display: block !important;
+  width: 100% !important;
+  padding: 9px 12px 9px 16px !important;
+  font-size: 0.78rem !important;
   color: var(--text-muted) !important;
+  text-align: left !important;
 }
 
 .sub-menu-item:hover, .sub-menu-item.active {
   color: var(--gold-primary) !important;
+  background: transparent !important;
   border-left: none !important;
+  padding-left: 16px !important;
 }
 
 .dropdown-arrow {
   font-size: 0.7rem;
   color: var(--text-muted);
-  transition: transform 0.2s;
+  margin-left: auto;
 }
 
 .notification-bell {
