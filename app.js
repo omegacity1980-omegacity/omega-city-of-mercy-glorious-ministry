@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
+  // 6-Second Loading Screen Transition
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
@@ -17,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       renderAuthSelection();
     }
-  }, 1000);
+  }, 6000);
 });
 
 // Database Helper Functions
@@ -138,48 +139,7 @@ function calculateMemberProjects(phone) {
   };
 }
 
-function calculateGroupFinancials(groupKey) {
-  const users = getUsers();
-  let groupMembers = groupKey === "workforce" ? users.filter(u => u.isWorker) : users.filter(u => u.group === groupKey);
-
-  const duesPayments = getFinancialRecords("omega_dues_payments");
-  const duesPaid = duesPayments
-    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
-    .reduce((sum, p) => sum + Number(p.amount), 0);
-
-  const projects = getFinancialRecords("omega_projects");
-  const levyPaid = projects
-    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
-    .reduce((sum, p) => sum + Number(p.amount), 0);
-
-  const groupExpensesRecords = getFinancialRecords("omega_group_expenses");
-  const expenses = groupExpensesRecords
-    .filter(e => e.group === groupKey)
-    .reduce((sum, e) => sum + Number(e.amount), 0);
-
-  let duesArrears = 0;
-  groupMembers.forEach(m => {
-    let calc = calculateMemberDues(m.phone);
-    duesArrears += calc.amountOwing;
-  });
-
-  const totalLevyArrears = Number(localStorage.getItem(`omega_levy_arrears_${groupKey}`)) || 0;
-  const inflow = duesPaid + levyPaid;
-  const totalBalance = inflow - expenses;
-
-  return {
-    inflow,
-    duesPaid,
-    levyPaid,
-    duesArrears,
-    totalLevyArrears,
-    expenses,
-    totalBalance,
-    members: groupMembers
-  };
-}
-
-// Auth Choice
+// Render Authentication Choice Screen
 function renderAuthSelection() {
   const container = document.getElementById("view-container");
   container.innerHTML = `
@@ -234,6 +194,219 @@ function handleLogin(e) {
 
   localStorage.setItem("omega_current_user", JSON.stringify(user));
   routeUserDashboard(user, 'home');
+}
+
+// MEMBER REGISTRATION FUNNEL - STEP 1
+function renderRegistrationStep1() {
+  const container = document.getElementById("view-container");
+  container.innerHTML = `
+    <div class="auth-box">
+      <h2>Member Registration (1/3)</h2>
+      <form id="reg-step1" onsubmit="handleRegStep1(event)">
+        <input type="text" id="reg-name" placeholder="Full Name" required />
+        <input type="tel" id="reg-phone" placeholder="Phone Number" required />
+        <input type="tel" id="reg-whatsapp" placeholder="WhatsApp Number" required />
+        <input type="email" id="reg-email" placeholder="Email Address" required />
+        
+        <label>Date of Birth</label>
+        <input type="date" id="reg-dob" required />
+
+        <input type="text" id="reg-origin" placeholder="State of Origin" required />
+        <input type="text" id="reg-residence" placeholder="State of Residence" required />
+        <input type="text" id="reg-address" placeholder="Residence Address" required />
+
+        <button type="submit" class="btn-primary">Continue</button>
+        <button type="button" onclick="renderAuthSelection()" class="btn-text">Cancel</button>
+      </form>
+    </div>
+  `;
+}
+
+let tempRegData = {};
+
+function handleRegStep1(e) {
+  e.preventDefault();
+  tempRegData = {
+    fullName: document.getElementById("reg-name").value.trim(),
+    phone: document.getElementById("reg-phone").value.trim(),
+    whatsapp: document.getElementById("reg-whatsapp").value.trim(),
+    email: document.getElementById("reg-email").value.trim(),
+    dob: document.getElementById("reg-dob").value,
+    origin: document.getElementById("reg-origin").value.trim(),
+    residence: document.getElementById("reg-residence").value.trim(),
+    address: document.getElementById("reg-address").value.trim()
+  };
+
+  const users = getUsers();
+  if (users.some(u => u.phone === tempRegData.phone)) {
+    alert("This phone number is already registered!");
+    return;
+  }
+
+  renderRegistrationStep2();
+}
+
+// MEMBER REGISTRATION FUNNEL - STEP 2
+function renderRegistrationStep2() {
+  const container = document.getElementById("view-container");
+  container.innerHTML = `
+    <div class="auth-box">
+      <h2>Member Assignment (2/3)</h2>
+      <form id="reg-step2" onsubmit="handleRegStep2(event)">
+        <label>Are you married?</label>
+        <select id="reg-married" onchange="toggleGenderPopup()" required>
+          <option value="">-- Select Option --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+
+        <div id="gender-popup-container" class="hidden">
+          <label>Gender (Fellowship Allocation)</label>
+          <select id="reg-gender">
+            <option value="">-- Select Gender --</option>
+            <option value="male">Male (Men Fellowship)</option>
+            <option value="female">Female (Women Fellowship)</option>
+          </select>
+        </div>
+
+        <label>Are you a worker?</label>
+        <select id="reg-worker" onchange="toggleDeptPopup()" required>
+          <option value="">-- Select Option --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+
+        <div id="dept-popup-container" class="hidden">
+          <label>Workforce Department</label>
+          <select id="reg-dept">
+            <option value="">-- Select Department --</option>
+            <option value="Sanitation">Sanitation</option>
+            <option value="Technical">Technical</option>
+            <option value="Security">Security</option>
+            <option value="Choir">Choir</option>
+            <option value="Usher">Usher</option>
+            <option value="Children class">Children class</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-primary">Continue</button>
+      </form>
+    </div>
+  `;
+}
+
+function toggleGenderPopup() {
+  const isMarried = document.getElementById("reg-married").value;
+  const genderContainer = document.getElementById("gender-popup-container");
+  if (isMarried === "yes") {
+    genderContainer.classList.remove("hidden");
+  } else {
+    genderContainer.classList.add("hidden");
+  }
+}
+
+function toggleDeptPopup() {
+  const isWorker = document.getElementById("reg-worker").value;
+  const deptContainer = document.getElementById("dept-popup-container");
+  if (isWorker === "yes") {
+    deptContainer.classList.remove("hidden");
+  } else {
+    deptContainer.classList.add("hidden");
+  }
+}
+
+function handleRegStep2(e) {
+  e.preventDefault();
+  const isMarried = document.getElementById("reg-married").value;
+  const gender = document.getElementById("reg-gender").value;
+  const isWorker = document.getElementById("reg-worker").value;
+  const department = document.getElementById("reg-dept").value;
+
+  let assignedGroup = "youth";
+  if (isMarried === "no") {
+    assignedGroup = "youth";
+  } else if (isMarried === "yes") {
+    if (gender === "male") assignedGroup = "men";
+    else if (gender === "female") assignedGroup = "women";
+    else {
+      alert("Please select gender to proceed!");
+      return;
+    }
+  }
+
+  if (isWorker === "yes" && !department) {
+    alert("Please select workforce department!");
+    return;
+  }
+
+  tempRegData.isMarried = isMarried === "yes";
+  tempRegData.gender = gender;
+  tempRegData.group = assignedGroup;
+  tempRegData.isWorker = isWorker === "yes";
+  tempRegData.department = isWorker === "yes" ? department : "";
+
+  renderRegistrationStep3();
+}
+
+// MEMBER REGISTRATION FUNNEL - STEP 3
+function renderRegistrationStep3() {
+  const container = document.getElementById("view-container");
+  container.innerHTML = `
+    <div class="auth-box">
+      <h2>Security & Photo (3/3)</h2>
+      <form id="reg-step3" onsubmit="handleFinalRegistration(event)">
+        <label>Enter 4-Digit Login PIN</label>
+        <input type="password" id="reg-pin" maxlength="4" required placeholder="****" />
+
+        <label>Confirm Login PIN</label>
+        <input type="password" id="reg-pin-confirm" maxlength="4" required placeholder="****" />
+
+        <label>Upload Profile Picture</label>
+        <input type="file" id="reg-pic" accept="image/*" required />
+
+        <button type="submit" class="btn-primary">SAVE ACCOUNT</button>
+      </form>
+    </div>
+  `;
+}
+
+function handleFinalRegistration(e) {
+  e.preventDefault();
+  const pin = document.getElementById("reg-pin").value;
+  const pinConfirm = document.getElementById("reg-pin-confirm").value;
+
+  if (pin !== pinConfirm) {
+    alert("PINs do not match!");
+    return;
+  }
+
+  const fileInput = document.getElementById("reg-pic");
+  const reader = new FileReader();
+
+  reader.onload = function(event) {
+    tempRegData.profilePic = event.target.result;
+    tempRegData.pin = pin;
+
+    const users = getUsers();
+    users.push(tempRegData);
+    saveUsers(users);
+
+    alert("Registration saved successfully! Please log in.");
+    renderLogin();
+  };
+
+  if (fileInput.files[0]) {
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    tempRegData.profilePic = "";
+    tempRegData.pin = pin;
+    const users = getUsers();
+    users.push(tempRegData);
+    saveUsers(users);
+
+    alert("Registration saved successfully! Please log in.");
+    renderLogin();
+  }
 }
 
 // MEMBER DASHBOARD
