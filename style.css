@@ -464,25 +464,6 @@ input:focus, select:focus, textarea:focus {
   margin-left: auto;
 }
 
-/* MEMBER DETAIL MODAL STYLES */
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--card-border);
-  font-size: 0.82rem;
-}
-
-.detail-row strong {
-  color: var(--text-muted);
-}
-
-.detail-row span {
-  color: var(--text-color);
-  font-weight: 600;
-}
-
 .notification-bell {
   position: relative;
   font-size: 1.1rem;
