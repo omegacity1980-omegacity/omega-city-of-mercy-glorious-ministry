@@ -797,7 +797,7 @@ function toggleSubMenu(menuId) {
   }
 }
 
-// FULL ADMIN DASHBOARD
+// FULL ADMIN DASHBOARD WITH CARDS & FUNCTIONS
 async function renderAdminDashboard(view = "home", isAutoRefresh = false) {
   currentActiveState = { type: 'admin', view: view, user: null };
   const container = document.getElementById("view-container");
