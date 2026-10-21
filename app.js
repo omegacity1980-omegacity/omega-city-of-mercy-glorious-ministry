@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       renderAuthSelection();
     }
-  }, 3000);
+  }, 2000);
 
   // Global Listener to Close Sidebar when clicking outside
   document.addEventListener("click", (e) => {
@@ -53,7 +53,6 @@ async function getUsers() {
   if (window.supabaseClient) {
     const { data, error } = await window.supabaseClient.from('users').select('*');
     if (!error && data) {
-      // Map database snake_case columns back to frontend camelCase properties smoothly
       return data.map(u => ({
         fullName: u.full_name,
         phone: u.phone,
@@ -108,7 +107,6 @@ async function saveUserToSupabase(userData) {
     }
   }
   
-  // Local backup mirror
   const localUsers = JSON.parse(localStorage.getItem("omega_users")) || [];
   localUsers.push(userData);
   localStorage.setItem("omega_users", JSON.stringify(localUsers));
@@ -805,13 +803,13 @@ function toggleSubMenu(menuId) {
   }
 }
 
-// FULL ADMIN DASHBOARD
+// FULL ADMIN DASHBOARD (NOW ASYNC FOR SUPABASE FETCHING)
 async function renderAdminDashboard(view = "home", isAutoRefresh = false) {
   currentActiveState = { type: 'admin', view: view, user: null };
   const container = document.getElementById("view-container");
   let mainContentHtml = "";
 
-  const users = await getUsers();
+  const users = await getUsers(); // Fetches live from Supabase
 
   const duesPayments = getFinancialRecords("omega_dues_payments");
   const groupExpenses = getFinancialRecords("omega_group_expenses");
@@ -1028,8 +1026,6 @@ async function renderAdminDashboard(view = "home", isAutoRefresh = false) {
       </div>
     `;
   } else if (view === "settings") {
-    let userOptions = users.map(u => `<option value="${u.phone}">${u.fullName} (${u.phone})</option>`).join("");
-
     mainContentHtml = `
       <div class="admin-content-area">
         <h3>Settings & Administrative Controls</h3>
