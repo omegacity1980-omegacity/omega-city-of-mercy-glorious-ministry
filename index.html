@@ -1,50 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Omega City Of Mercy - Financial Record</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0d0d0d" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Omega Financials" />
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omega City of Mercy</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="theme-dark" id="app-body">
+<body id="app-body" class="theme-dark">
 
-  <!-- 6-SECOND LOADING SCREEN -->
-  <div id="loading-screen" class="splash-screen">
+  <!-- Splash / Loading Screen -->
+  <div id="loading-screen">
     <div class="splash-content">
-      <h1 class="church-title">OMEGA CITY OF MERCY FINANCIAL RECORD</h1>
-      
-      <!-- Logo Container with Rolling Arrows & Pen Writing Book Animation -->
-      <div class="animation-container">
-        <div class="rolling-arrows"></div>
-        <div class="logo-box">
-          <i class="fa-solid fa-book-open book-icon"></i>
-          <i class="fa-solid fa-pen-nib pen-icon"></i>
-        </div>
-      </div>
-
-      <p class="slogan">Keeping financial records transparent.</p>
-
-      <!-- Progress Bar -->
-      <div class="progress-bar-container">
-        <div class="progress-bar" id="progress-bar"></div>
-      </div>
+      <h1>OMEGA CITY OF MERCY</h1>
+      <p>Financial & Member Management System</p>
+      <div class="spinner"></div>
     </div>
   </div>
 
-  <!-- MAIN APP CONTAINER -->
+  <!-- Main Application Container -->
   <div id="app" class="hidden">
     <div id="view-container"></div>
   </div>
 
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Main Application Logic -->
   <script src="app.js"></script>
 </body>
 </html>
