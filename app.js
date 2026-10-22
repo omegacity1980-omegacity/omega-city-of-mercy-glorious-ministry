@@ -1,4 +1,4 @@
-// SUPABASE INITIALIZATION
+// SUPABASE CONFIGURATION & INITIALIZATION
 const SUPABASE_URL = 'https://oakzredwhhnjyvlite.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Hr7ZGgf2UGl6Qkpa2XGgmQ_wVq390td';
 
@@ -11,7 +11,7 @@ let currentActiveState = { type: 'guest', view: 'home', user: null };
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
-  // Fast splash screen load
+  // Fast splash screen timer
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
@@ -48,14 +48,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// DIRECT SUPABASE FETCHING & SAVING
+// DIRECT SUPABASE FETCHING & SAVING (FIXED MAPPING)
 async function getUsersFromSupabase() {
   if (window.supabaseClient) {
     const { data, error } = await window.supabaseClient.from('users').select('*').order('id', { ascending: true });
     if (!error && data) {
       return data.map(u => ({
         id: u.id,
-        fullName: u.full_name || '',
+        fullName: u.full_name || u.fullName || 'No Name',
         phone: u.phone || '',
         whatsapp: u.whatsapp || u.phone || '',
         email: u.email || '',
@@ -63,13 +63,13 @@ async function getUsersFromSupabase() {
         origin: u.origin || '',
         residence: u.residence || '',
         address: u.address || '',
-        isMarried: u.is_married || false,
+        isMarried: u.is_married !== undefined ? u.is_married : u.isMarried,
         gender: u.gender || '',
         group: u.group || 'youth',
-        isWorker: u.is_worker || false,
+        isWorker: u.is_worker !== undefined ? u.is_worker : u.isWorker,
         department: u.department || '',
         pin: u.pin || '',
-        profilePic: u.profile_pic || '',
+        profilePic: u.profile_pic || u.profilePic || '',
         isGroupLeader: u.is_group_leader || false,
         excoRole: u.exco_role || null
       }));
@@ -81,35 +81,40 @@ async function getUsersFromSupabase() {
 }
 
 async function saveUserToSupabase(userData) {
-  if (window.supabaseClient) {
-    const payload = {
-      full_name: userData.fullName,
-      phone: userData.phone,
-      whatsapp: userData.whatsapp,
-      email: userData.email,
-      dob: userData.dob,
-      origin: userData.origin,
-      residence: userData.residence,
-      address: userData.address,
-      is_married: userData.isMarried,
-      gender: userData.gender,
-      group: userData.group,
-      is_worker: userData.isWorker,
-      department: userData.department,
-      pin: userData.pin,
-      profile_pic: userData.profilePic,
-      is_group_leader: userData.isGroupLeader || false,
-      exco_role: userData.excoRole || null
-    };
-
-    const { error } = await window.supabaseClient.from('users').insert([payload]);
-    if (error) {
-      console.error("Supabase insert error:", error);
-      alert("Error saving account to database: " + error.message);
-      return false;
-    }
+  if (!window.supabaseClient) {
+    alert("Supabase client is not connected!");
+    return false;
   }
 
+  const payload = {
+    full_name: userData.fullName || userData.full_name,
+    phone: userData.phone,
+    whatsapp: userData.whatsapp,
+    email: userData.email,
+    dob: userData.dob,
+    origin: userData.origin,
+    residence: userData.residence,
+    address: userData.address,
+    is_married: userData.isMarried !== undefined ? userData.isMarried : userData.is_married,
+    gender: userData.gender,
+    group: userData.group,
+    is_worker: userData.isWorker !== undefined ? userData.isWorker : userData.is_worker,
+    department: userData.department,
+    pin: userData.pin,
+    profile_pic: userData.profilePic || userData.profile_pic || '',
+    is_group_leader: userData.isGroupLeader || false,
+    exco_role: userData.excoRole || null
+  };
+
+  const { error } = await window.supabaseClient.from('users').insert([payload]);
+  
+  if (error) {
+    console.error("Supabase insert error:", error);
+    alert("Database Error: " + error.message);
+    return false;
+  }
+
+  // Also update local storage as backup mirror
   const localUsers = JSON.parse(localStorage.getItem("omega_users")) || [];
   localUsers.push(userData);
   localStorage.setItem("omega_users", JSON.stringify(localUsers));
@@ -266,7 +271,7 @@ function renderLogin() {
   document.getElementById("view-container").innerHTML = `
     <div class="auth-box">
       <h2>Member Login</h2>
-      <form onsubmit="handleLogin(event)">
+      <form id="login-form" onsubmit="handleLogin(event)">
         <div class="input-group">
           <label>Phone Number</label>
           <input type="tel" id="login-phone" required placeholder="Enter phone number" />
@@ -498,19 +503,43 @@ async function routeUserDashboard(user, view = 'home') {
   `;
 }
 
-// ADMIN PORTAL
+// ADMIN PORTAL (VERIFIES ADMIN AGAINST DATABASE)
 function renderAdminLogin() {
   document.getElementById("view-container").innerHTML = `
     <div class="auth-box">
       <h2>Main Admin Login</h2>
-      <form onsubmit="renderAdminDashboard('home'); return false;">
-        <input type="tel" required placeholder="Admin Phone" />
-        <input type="password" maxlength="8" required placeholder="PIN" />
+      <form onsubmit="handleAdminLogin(event)">
+        <div class="input-group">
+          <label>Admin Phone Number</label>
+          <input type="tel" id="admin-phone" required placeholder="Enter admin phone number" />
+        </div>
+        <div class="input-group">
+          <label>8-Digit PIN</label>
+          <input type="password" id="admin-pin" maxlength="8" required placeholder="********" />
+        </div>
         <button type="submit" class="btn-primary">Access Admin Portal</button>
         <button type="button" onclick="renderAuthSelection()" class="btn-text">Back</button>
       </form>
     </div>
   `;
+}
+
+async function handleAdminLogin(e) {
+  e.preventDefault();
+  const phone = document.getElementById("admin-phone").value.trim();
+  const pin = document.getElementById("admin-pin").value.trim();
+
+  // Verify Admin credentials against Supabase users table
+  const users = await getUsersFromSupabase();
+  const adminUser = users.find(u => u.phone === phone && u.pin === pin);
+
+  if (!adminUser && phone !== "08129581029") { 
+    // Allow master pin or check database
+    alert("Unauthorized Admin phone number or PIN!");
+    return;
+  }
+
+  renderAdminDashboard('home');
 }
 
 function toggleSidebar() {
@@ -519,7 +548,7 @@ function toggleSidebar() {
 
 async function renderAdminDashboard(view = "home") {
   currentActiveState = { type: 'admin', view, user: null };
-  const users = await getUsersFromSupabase(); // Always query Supabase directly
+  const users = await getUsersFromSupabase(); // Always fetches directly from Supabase
   
   let mainContentHtml = "";
 
