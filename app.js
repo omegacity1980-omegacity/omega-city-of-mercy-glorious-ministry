@@ -1,4 +1,4 @@
-// SUPABASE CONFIGURATION & INITIALIZATION
+// SUPABASE INITIALIZATION
 const SUPABASE_URL = 'https://oakzredwhhnjyvlite.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Hr7ZGgf2UGl6Qkpa2XGgmQ_wVq390td';
 
@@ -7,12 +7,11 @@ if (window.supabase) {
 }
 
 let currentActiveState = { type: 'guest', view: 'home', user: null };
-let userCache = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   initDuesConfig();
 
-  // Fast-track splash screen
+  // Fast splash screen load
   setTimeout(() => {
     const loadingScreen = document.getElementById("loading-screen");
     const appContainer = document.getElementById("app");
@@ -31,41 +30,90 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }, 1000);
 
-  // Global Listener to Close Sidebar when clicking outside
+  // Global Sidebar Close Handler
   document.addEventListener("click", (e) => {
     const sidebar = document.getElementById("admin-sidebar");
-    if (sidebar && sidebar.classList.contains("open")) {
-      const toggleBtn = e.target.closest('.toggle-btn-topleft');
-      if (!sidebar.contains(e.target) && !toggleBtn) {
-        sidebar.classList.remove("open");
-        const overlay = document.getElementById("sidebar-backdrop");
-        if (overlay) overlay.remove();
+    const memberSidebar = document.getElementById("member-sidebar");
+
+    [sidebar, memberSidebar].forEach(sb => {
+      if (sb && sb.classList.contains("open")) {
+        const toggleBtn = e.target.closest('.toggle-btn-topleft');
+        if (!sb.contains(e.target) && !toggleBtn) {
+          sb.classList.remove("open");
+          const overlay = document.getElementById("sidebar-backdrop");
+          if (overlay) overlay.remove();
+        }
       }
-    }
+    });
   });
 });
 
-// Robust Database Helpers with Cache Invalidation
-async function getUsersFromSupabase(forceRefresh = false) {
-  if (userCache && !forceRefresh) return userCache;
-
+// DIRECT SUPABASE FETCHING & SAVING
+async function getUsersFromSupabase() {
   if (window.supabaseClient) {
-    const { data, error } = await window.supabaseClient.from('users').select('*');
+    const { data, error } = await window.supabaseClient.from('users').select('*').order('id', { ascending: true });
     if (!error && data) {
-      userCache = data;
-      return data;
+      return data.map(u => ({
+        id: u.id,
+        fullName: u.full_name || '',
+        phone: u.phone || '',
+        whatsapp: u.whatsapp || u.phone || '',
+        email: u.email || '',
+        dob: u.dob || '',
+        origin: u.origin || '',
+        residence: u.residence || '',
+        address: u.address || '',
+        isMarried: u.is_married || false,
+        gender: u.gender || '',
+        group: u.group || 'youth',
+        isWorker: u.is_worker || false,
+        department: u.department || '',
+        pin: u.pin || '',
+        profilePic: u.profile_pic || '',
+        isGroupLeader: u.is_group_leader || false,
+        excoRole: u.exco_role || null
+      }));
+    } else {
+      console.error("Supabase fetch users error:", error);
     }
   }
   return JSON.parse(localStorage.getItem("omega_users")) || [];
 }
 
-function getUsers() {
-  return userCache || JSON.parse(localStorage.getItem("omega_users")) || [];
-}
+async function saveUserToSupabase(userData) {
+  if (window.supabaseClient) {
+    const payload = {
+      full_name: userData.fullName,
+      phone: userData.phone,
+      whatsapp: userData.whatsapp,
+      email: userData.email,
+      dob: userData.dob,
+      origin: userData.origin,
+      residence: userData.residence,
+      address: userData.address,
+      is_married: userData.isMarried,
+      gender: userData.gender,
+      group: userData.group,
+      is_worker: userData.isWorker,
+      department: userData.department,
+      pin: userData.pin,
+      profile_pic: userData.profilePic,
+      is_group_leader: userData.isGroupLeader || false,
+      exco_role: userData.excoRole || null
+    };
 
-function saveUsers(users) {
-  userCache = users;
-  localStorage.setItem("omega_users", JSON.stringify(users));
+    const { error } = await window.supabaseClient.from('users').insert([payload]);
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Error saving account to database: " + error.message);
+      return false;
+    }
+  }
+
+  const localUsers = JSON.parse(localStorage.getItem("omega_users")) || [];
+  localUsers.push(userData);
+  localStorage.setItem("omega_users", JSON.stringify(localUsers));
+  return true;
 }
 
 function getFinancialRecords(key) {
@@ -78,7 +126,7 @@ function saveFinancialRecords(key, data) {
 
 function getDuesRates() {
   return JSON.parse(localStorage.getItem("omega_dues_rates")) || [
-    { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
+    { effectiveFrom: "2026-01", rate: 500, admin: "System", dateSet: new Date().toISOString() }
   ];
 }
 
@@ -89,15 +137,15 @@ function saveDuesRates(rates) {
 function initDuesConfig() {
   if (!localStorage.getItem("omega_dues_rates")) {
     saveDuesRates([
-      { effectiveFrom: "2026-01", rate: 1000, admin: "System", dateSet: new Date().toISOString() }
+      { effectiveFrom: "2026-01", rate: 500, admin: "System", dateSet: new Date().toISOString() }
     ]);
   }
 }
 
-// Financial Calculations
+// FINANCIAL CALCULATIONS
 function getRateForMonth(year, monthIndex) {
   const monthStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
-  const rates = getDuesRates();
+  const rates = getDuesRates().sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
   let currentRate = rates[0].rate;
   for (let r of rates) {
     if (r.effectiveFrom <= monthStr) currentRate = r.rate;
@@ -123,19 +171,19 @@ function calculateMemberDues(phone) {
       let required = getRateForMonth(y, m);
       let monthName = new Date(y, m, 1).toLocaleString('default', { month: 'short' });
       totalRequiredTillDate += required;
-      
-      let paidAmt = 0;
+      let paid = 0;
       let status = 'unpaid';
+
       if (remainingPool >= required) {
-        paidAmt = required;
+        paid = required;
         status = 'paid';
         remainingPool -= required;
       } else if (remainingPool > 0) {
-        paidAmt = remainingPool;
+        paid = remainingPool;
         status = 'partial';
         remainingPool = 0;
       }
-      monthLedger.push({ label: `${monthName} ${y}`, required, paid: paidAmt, status });
+      monthLedger.push({ label: `${monthName} ${y}`, required, paid, status });
     }
   }
 
@@ -149,7 +197,7 @@ function calculateMemberDues(phone) {
 }
 
 function calculateMemberProjects(phone) {
-  const projects = getFinancialRecords("omega_projects").filter(p => p.memberPhone === phone || p.member_phone === phone);
+  const projects = getFinancialRecords("omega_projects").filter(p => p.memberPhone === phone);
   return {
     total: projects.reduce((sum, p) => sum + Number(p.amount), 0),
     list: projects
@@ -158,9 +206,13 @@ function calculateMemberProjects(phone) {
 
 async function calculateGroupFinancials(groupKey) {
   const users = await getUsersFromSupabase();
-  const groupMembers = groupKey === "workforce" 
-    ? users.filter(u => u.is_worker || u.isWorker) 
-    : users.filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase());
+  let groupMembers = [];
+
+  if (groupKey === "workforce") {
+    groupMembers = users.filter(u => u.isWorker);
+  } else {
+    groupMembers = users.filter(u => u.group && u.group.toLowerCase() === groupKey.toLowerCase());
+  }
 
   const duesPayments = getFinancialRecords("omega_dues_payments");
   const duesPaid = duesPayments
@@ -169,7 +221,7 @@ async function calculateGroupFinancials(groupKey) {
 
   const projects = getFinancialRecords("omega_projects");
   const levyPaid = projects
-    .filter(p => groupMembers.some(m => m.phone === p.memberPhone || m.phone === p.member_phone))
+    .filter(p => groupMembers.some(m => m.phone === p.memberPhone))
     .reduce((sum, p) => sum + Number(p.amount), 0);
 
   const expenses = getFinancialRecords("omega_group_expenses")
@@ -192,7 +244,7 @@ async function calculateGroupFinancials(groupKey) {
   };
 }
 
-// UI Rendering Functions
+// UI VIEW ROUTING
 function renderAuthSelection() {
   currentActiveState = { type: 'guest', view: 'home', user: null };
   document.getElementById("view-container").innerHTML = `
@@ -235,7 +287,7 @@ async function handleLogin(e) {
   const phone = document.getElementById("login-phone").value.trim();
   const pin = document.getElementById("login-pin").value.trim();
 
-  const users = await getUsersFromSupabase(true);
+  const users = await getUsersFromSupabase();
   const user = users.find(u => u.phone === phone && u.pin === pin);
 
   if (!user) {
@@ -243,10 +295,11 @@ async function handleLogin(e) {
     return;
   }
 
+  localStorage.setItem("omega_current_user", JSON.stringify(user));
   routeUserDashboard(user, 'home');
 }
 
-// Registration Funnel
+// REGISTRATION FUNNEL
 function renderRegistrationStep1() {
   document.getElementById("view-container").innerHTML = `
     <div class="auth-box">
@@ -269,10 +322,11 @@ function renderRegistrationStep1() {
 }
 
 let tempRegData = {};
+
 async function handleRegStep1(e) {
   e.preventDefault();
   tempRegData = {
-    full_name: document.getElementById("reg-name").value.trim(),
+    fullName: document.getElementById("reg-name").value.trim(),
     phone: document.getElementById("reg-phone").value.trim(),
     whatsapp: document.getElementById("reg-whatsapp").value.trim(),
     email: document.getElementById("reg-email").value.trim(),
@@ -282,7 +336,7 @@ async function handleRegStep1(e) {
     address: document.getElementById("reg-address").value.trim()
   };
 
-  const users = await getUsersFromSupabase(true);
+  const users = await getUsersFromSupabase();
   if (users.some(u => u.phone === tempRegData.phone)) {
     alert("This phone number is already registered!");
     return;
@@ -352,10 +406,10 @@ function handleRegStep2(e) {
   const department = document.getElementById("reg-dept").value;
 
   let assignedGroup = isMarried === "no" ? "youth" : (gender === "male" ? "men" : "women");
-  tempRegData.is_married = isMarried === "yes";
+  tempRegData.isMarried = isMarried === "yes";
   tempRegData.gender = gender;
   tempRegData.group = assignedGroup;
-  tempRegData.is_worker = isWorker === "yes";
+  tempRegData.isWorker = isWorker === "yes";
   tempRegData.department = isWorker === "yes" ? department : "";
 
   renderRegistrationStep3();
@@ -378,7 +432,7 @@ function renderRegistrationStep3() {
   `;
 }
 
-async function handleFinalRegistration(e) {
+function handleFinalRegistration(e) {
   e.preventDefault();
   const pin = document.getElementById("reg-pin").value;
   if (pin !== document.getElementById("reg-pin-confirm").value) {
@@ -387,65 +441,64 @@ async function handleFinalRegistration(e) {
   }
 
   const fileInput = document.getElementById("reg-pic");
-  const processSave = async (base64Pic) => {
-    tempRegData.profile_pic = base64Pic;
+  const reader = new FileReader();
+
+  reader.onload = async function(ev) {
+    tempRegData.profilePic = ev.target.result;
     tempRegData.pin = pin;
 
-    if (window.supabaseClient) {
-      const { error } = await window.supabaseClient.from('users').insert([tempRegData]);
-      if (error) {
-        alert("Error: " + error.message);
-        return;
-      }
+    const saved = await saveUserToSupabase(tempRegData);
+    if (saved) {
+      alert("Registration saved successfully to Supabase! Please log in.");
+      renderLogin();
     }
-    
-    // Update local cache & localStorage
-    const users = getUsers();
-    users.push(tempRegData);
-    saveUsers(users);
-
-    alert("Registration saved successfully!");
-    renderLogin();
   };
 
   if (fileInput.files[0]) {
-    const reader = new FileReader();
-    reader.onload = (ev) => processSave(ev.target.result);
     reader.readAsDataURL(fileInput.files[0]);
   } else {
-    processSave("");
+    tempRegData.profilePic = "";
+    tempRegData.pin = pin;
+    (async () => {
+      const saved = await saveUserToSupabase(tempRegData);
+      if (saved) {
+        alert("Registration saved successfully to Supabase! Please log in.");
+        renderLogin();
+      }
+    })();
   }
 }
 
-// Fast Member Dashboard
+// MEMBER DASHBOARD
 async function routeUserDashboard(user, view = 'home') {
-  currentActiveState = { type: 'member', view, user };
-  const financials = calculateMemberDues(user.phone);
-  const projectsData = calculateMemberProjects(user.phone);
+  const users = await getUsersFromSupabase();
+  const latestUser = users.find(u => u.phone === user.phone) || user;
+  currentActiveState = { type: 'member', view, user: latestUser };
 
-  let mainBody = `
-    <div class="welcome-banner">
-      <h2>${(user.group || 'MEMBER').toUpperCase()} DASHBOARD</h2>
-    </div>
-    <div class="member-card-grid">
-      <div class="m-card"><h4>Dues Paid</h4><p>₦${financials.totalPaid.toLocaleString()}</p></div>
-      <div class="m-card"><h4>Amount Owing</h4><p>₦${financials.amountOwing.toLocaleString()}</p></div>
-      <div class="m-card"><h4>Projects</h4><p>₦${projectsData.total.toLocaleString()}</p></div>
-    </div>
-  `;
+  const financials = calculateMemberDues(latestUser.phone);
+  const projectsData = calculateMemberProjects(latestUser.phone);
 
   document.getElementById("view-container").innerHTML = `
     <div class="member-dashboard-wrapper">
       <header class="member-topbar">
-        <h3>${user.full_name || user.fullName}</h3>
+        <h3>${latestUser.fullName} (${(latestUser.group || 'MEMBER').toUpperCase()})</h3>
         <button onclick="renderAuthSelection()" class="btn-logout">Logout</button>
       </header>
-      <div class="member-content">${mainBody}</div>
+      <div class="member-content">
+        <div class="welcome-banner">
+          <h2>${(latestUser.group || 'MEMBER').toUpperCase()} DASHBOARD</h2>
+        </div>
+        <div class="member-card-grid">
+          <div class="m-card"><h4>Dues Paid</h4><p>₦${financials.totalPaid.toLocaleString()}</p></div>
+          <div class="m-card"><h4>Amount Owing</h4><p>₦${financials.amountOwing.toLocaleString()}</p></div>
+          <div class="m-card"><h4>Projects</h4><p>₦${projectsData.total.toLocaleString()}</p></div>
+        </div>
+      </div>
     </div>
   `;
 }
 
-// Admin Portal Entry
+// ADMIN PORTAL
 function renderAdminLogin() {
   document.getElementById("view-container").innerHTML = `
     <div class="auth-box">
@@ -453,7 +506,7 @@ function renderAdminLogin() {
       <form onsubmit="renderAdminDashboard('home'); return false;">
         <input type="tel" required placeholder="Admin Phone" />
         <input type="password" maxlength="8" required placeholder="PIN" />
-        <button type="submit" class="btn-primary">Login</button>
+        <button type="submit" class="btn-primary">Access Admin Portal</button>
         <button type="button" onclick="renderAuthSelection()" class="btn-text">Back</button>
       </form>
     </div>
@@ -464,43 +517,76 @@ function toggleSidebar() {
   document.getElementById("admin-sidebar")?.classList.toggle("open");
 }
 
-function toggleSubMenu(id) {
-  document.getElementById(id)?.classList.toggle("hidden");
-}
-
-// Fast Admin Dashboard Renderer with Restored Sidebar & Member Lists
 async function renderAdminDashboard(view = "home") {
   currentActiveState = { type: 'admin', view, user: null };
-  const users = await getUsersFromSupabase(true); // Always fetch fresh list for admin views
-  const duesPayments = getFinancialRecords("omega_dues_payments");
-  const groupExpenses = getFinancialRecords("omega_group_expenses");
+  const users = await getUsersFromSupabase(); // Always query Supabase directly
   
-  const totalDues = duesPayments.reduce((s, i) => s + Number(i.amount), 0);
-  const totalExpenses = groupExpenses.reduce((s, i) => s + Number(i.amount), 0);
-
-  let content = "";
+  let mainContentHtml = "";
 
   if (view === "home") {
-    content = `
+    mainContentHtml = `
       <section class="cards-container">
         <div class="balance-card-full">
-          <h4>TOTAL REGISTERED MEMBERS</h4>
+          <h4>TOTAL REGISTERED MEMBERS (SUPABASE)</h4>
           <p>${users.length}</p>
         </div>
-        <div class="admin-cards-grid-2x2">
-          <div class="summary-card"><h4>Total Dues</h4><p>₦${totalDues.toLocaleString()}</p></div>
-          <div class="summary-card"><h4>Expenses</h4><p>₦${totalExpenses.toLocaleString()}</p></div>
-        </div>
       </section>
+    `;
+  } else if (["all", "dept-sanitation", "dept-security", "dept-usher", "dept-technical", "dept-children", "dept-minister", "dept-choir"].includes(view)) {
+    let filteredUsers = users;
+    if (view.startsWith("dept-")) {
+      const dept = view.replace("dept-", "").toLowerCase();
+      filteredUsers = users.filter(u => u.department && u.department.toLowerCase() === dept);
+    }
+
+    let rows = filteredUsers.map((u, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.fullName}</a></td>
+        <td>${u.phone}</td>
+        <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
+        <td>
+          <div class="btn-action-group">
+            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
+            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    mainContentHtml = `
+      <div class="admin-content-area">
+        <div class="balance-card-full" style="margin-bottom:20px;">
+          <h4>TOTAL REGISTERED MEMBERS (LIVE DATABASE)</h4>
+          <p>${users.length}</p>
+        </div>
+        <h3>View Directory (${filteredUsers.length} records)</h3>
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>S/N</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Group</th>
+              <th>Department</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="6" style="text-align:center;">No records found in database.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     `;
   } else if (["men", "women", "youth", "workforce"].includes(view)) {
     const fin = await calculateGroupFinancials(view);
     let rows = fin.members.map((u, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.full_name || u.fullName}</a></td>
+        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.fullName}</a></td>
         <td>${u.phone}</td>
-        <td>${(u.is_worker || u.isWorker) ? (u.department || 'Yes') : 'No'}</td>
+        <td>${u.isWorker ? (u.department || 'Yes') : 'No'}</td>
         <td>
           <div class="btn-action-group">
             <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
@@ -510,66 +596,15 @@ async function renderAdminDashboard(view = "home") {
       </tr>
     `).join("");
 
-    content = `
+    mainContentHtml = `
       <div class="admin-content-area">
         <h3>${view.toUpperCase()} FELLOWSHIP</h3>
         <table class="members-table">
-          <thead><tr><th>S/N</th><th>Name</th><th>Phone</th><th>Workforce</th><th>Action</th></tr></thead>
+          <thead><tr><th>S/N</th><th>Name</th><th>Phone</th><th>Department</th><th>Action</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="5" style="text-align:center;">No members found.</td></tr>'}</tbody>
         </table>
       </div>
     `;
-  } else if (view === "all" || view.startsWith("dept-")) {
-    let filtered = users;
-    if (view.startsWith("dept-")) {
-      const deptName = view.replace("dept-", "").toLowerCase();
-      filtered = users.filter(u => u.department && u.department.toLowerCase() === deptName);
-    }
-    let rows = filtered.map((u, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td><a onclick="openMemberDetailsModal('${u.phone}')" style="color:var(--gold-primary); cursor:pointer; text-decoration:underline;">${u.full_name || u.fullName}</a></td>
-        <td>${u.phone}</td>
-        <td>${u.group ? u.group.toUpperCase() : 'MEMBER'}</td>
-        <td>${(u.is_worker || u.isWorker) ? (u.department || 'Yes') : 'No'}</td>
-        <td>
-          <div class="btn-action-group">
-            <button onclick="editMember('${u.phone}')" class="btn-sm-edit">Edit</button>
-            <button onclick="deleteMember('${u.phone}')" class="btn-sm-danger">Delete</button>
-          </div>
-        </td>
-      </tr>
-    `).join("");
-
-    content = `
-      <div class="admin-content-area">
-        <h3>Members Directory (${filtered.length})</h3>
-        <table class="members-table">
-          <thead><tr><th>S/N</th><th>Name</th><th>Phone</th><th>Group</th><th>Dept</th><th>Action</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'}</tbody>
-        </table>
-      </div>
-    `;
-  } else if (view === "projects") {
-    const projects = getFinancialRecords("omega_projects");
-    let rows = projects.map((p, i) => `<tr><td>${i+1}</td><td>${p.date}</td><td>${p.memberName}</td><td>${p.projectName}</td><td>₦${p.amount}</td></tr>`).join("");
-    
-    let options = users.map(u => `<option value="${u.phone}">${u.full_name || u.fullName} (${u.phone})</option>`).join("");
-    content = `
-      <div class="admin-content-area">
-        <h3>Group Projects</h3>
-        <form onsubmit="handleProjectEntry(event)" class="settings-card">
-          <select id="proj-member-phone" required><option value="">-- Select Member --</option>${options}</select>
-          <input type="text" id="proj-title" placeholder="Project Name" required />
-          <input type="number" id="proj-amount" placeholder="Amount" required />
-          <input type="date" id="proj-date" required />
-          <button type="submit" class="btn-primary">Save Project</button>
-        </form>
-        <table class="members-table"><thead><tr><th>S/N</th><th>Date</th><th>Member</th><th>Project</th><th>Amount</th></tr></thead><tbody>${rows || '<tr><td colspan="5" style="text-align:center;">No projects recorded.</td></tr>'}</tbody></table>
-      </div>
-    `;
-  } else if (view === "settings") {
-    content = `<div class="admin-content-area"><h3>Settings</h3><p>System configuration active.</p></div>`;
   }
 
   const isSidebarOpen = document.getElementById("admin-sidebar")?.classList.contains("open");
@@ -581,47 +616,18 @@ async function renderAdminDashboard(view = "home") {
           <button class="toggle-btn-topleft" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i> Menu</button>
           <h3>Admin Portal</h3>
         </header>
-        ${content}
+        ${mainContentHtml}
       </main>
+
       <aside class="admin-sidebar ${isSidebarOpen ? 'open' : ''}" id="admin-sidebar">
         <div class="sidebar-header"><span>NAVIGATION</span><button onclick="toggleSidebar()"><i class="fa-solid fa-xmark"></i></button></div>
         <ul class="sidebar-menu">
           <li><a onclick="renderAdminDashboard('home'); toggleSidebar();" class="${view === 'home' ? 'active' : ''}">Dashboard</a></li>
-          
-          <!-- WORKFORCE DROPDOWN -->
-          <li>
-            <a onclick="toggleSubMenu('workforce-sub-menu')">
-              <span class="menu-item-left"><i class="fa-solid fa-briefcase"></i> Workforce</span>
-              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
-            </a>
-            <ul id="workforce-sub-menu" class="sub-menu-list hidden">
-              <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();">All Workforce</a></li>
-              <li><a onclick="renderAdminDashboard('dept-sanitation'); toggleSidebar();">Sanitation</a></li>
-              <li><a onclick="renderAdminDashboard('dept-security'); toggleSidebar();">Security</a></li>
-              <li><a onclick="renderAdminDashboard('dept-usher'); toggleSidebar();">Usher</a></li>
-              <li><a onclick="renderAdminDashboard('dept-technical'); toggleSidebar();">Tech Dept</a></li>
-              <li><a onclick="renderAdminDashboard('dept-children'); toggleSidebar();">Children Class</a></li>
-              <li><a onclick="renderAdminDashboard('dept-minister'); toggleSidebar();">Minister</a></li>
-              <li><a onclick="renderAdminDashboard('dept-choir'); toggleSidebar();">Choir</a></li>
-            </ul>
-          </li>
-
-          <!-- GROUPS DROPDOWN -->
-          <li>
-            <a onclick="toggleSubMenu('groups-sub-menu')">
-              <span class="menu-item-left"><i class="fa-solid fa-people-group"></i> Groups</span>
-              <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
-            </a>
-            <ul id="groups-sub-menu" class="sub-menu-list hidden">
-              <li><a onclick="renderAdminDashboard('men'); toggleSidebar();">Men Fellowship</a></li>
-              <li><a onclick="renderAdminDashboard('women'); toggleSidebar();">Women Fellowship</a></li>
-              <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();">Youth Fellowship</a></li>
-            </ul>
-          </li>
-
-          <li><a onclick="renderAdminDashboard('projects'); toggleSidebar();" class="${view === 'projects' ? 'active' : ''}">Group Projects</a></li>
           <li><a onclick="renderAdminDashboard('all'); toggleSidebar();" class="${view === 'all' ? 'active' : ''}">View All Members</a></li>
-          <li><a onclick="renderAdminDashboard('settings'); toggleSidebar();" class="${view === 'settings' ? 'active' : ''}">Settings</a></li>
+          <li><a onclick="renderAdminDashboard('men'); toggleSidebar();" class="${view === 'men' ? 'active' : ''}">Men Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('women'); toggleSidebar();" class="${view === 'women' ? 'active' : ''}">Women Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('youth'); toggleSidebar();" class="${view === 'youth' ? 'active' : ''}">Youth Fellowship</a></li>
+          <li><a onclick="renderAdminDashboard('workforce'); toggleSidebar();" class="${view === 'workforce' ? 'active' : ''}">Workforce</a></li>
           <li><a onclick="renderAuthSelection()">Logout</a></li>
         </ul>
       </aside>
@@ -629,7 +635,41 @@ async function renderAdminDashboard(view = "home") {
   `;
 }
 
-// Member Details Modal & Actions
+// ADMIN MEMBER EDIT & DELETE (UPDATES SUPABASE LIVE)
+async function editMember(phone) {
+  const users = await getUsersFromSupabase();
+  const user = users.find(u => u.phone === phone);
+  if (!user) return;
+
+  const newName = prompt("Edit Full Name:", user.fullName);
+  if (newName === null || !newName.trim()) return;
+
+  if (window.supabaseClient) {
+    const { error } = await window.supabaseClient.from('users').update({ full_name: newName.trim() }).eq('phone', phone);
+    if (error) {
+      alert("Error updating database: " + error.message);
+      return;
+    }
+  }
+
+  alert("Member updated successfully in live database!");
+  renderAdminDashboard('all');
+}
+
+async function deleteMember(phone) {
+  if (confirm("Are you sure you want to delete this member from the live database?")) {
+    if (window.supabaseClient) {
+      const { error } = await window.supabaseClient.from('users').delete().eq('phone', phone);
+      if (error) {
+        alert("Error deleting from database: " + error.message);
+        return;
+      }
+    }
+    alert("Member deleted successfully from live database.");
+    renderAdminDashboard('all');
+  }
+}
+
 async function openMemberDetailsModal(phone) {
   const users = await getUsersFromSupabase();
   const u = users.find(user => user.phone === phone);
@@ -646,72 +686,21 @@ async function openMemberDetailsModal(phone) {
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
         <div style="text-align: center; margin-bottom: 10px;">
-          <img src="${u.profile_pic || 'https://via.placeholder.com/70'}" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--gold-primary); object-fit: cover;" />
+          <img src="${u.profilePic || 'https://via.placeholder.com/70'}" style="width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--gold-primary); object-fit: cover;" />
         </div>
-        <div><strong>Full Name:</strong> ${u.full_name || u.fullName}</div>
+        <div><strong>Full Name:</strong> ${u.fullName}</div>
         <div><strong>Phone Number:</strong> ${u.phone}</div>
         <div><strong>WhatsApp:</strong> ${u.whatsapp || u.phone}</div>
         <div><strong>Email:</strong> ${u.email || 'N/A'}</div>
         <div><strong>Group:</strong> ${u.group ? u.group.toUpperCase() : 'N/A'}</div>
-        <div><strong>Department:</strong> ${(u.is_worker || u.isWorker) ? (u.department || 'Yes') : 'No'}</div>
+        <div><strong>Department:</strong> ${u.isWorker ? (u.department || 'Yes') : 'No'}</div>
         
         <div style="display: flex; gap: 10px; margin-top: 15px;">
-          <button onclick="document.getElementById('member-detail-modal').remove(); editMember('${u.phone}')" class="btn-primary" style="flex:1;">Edit</button>
-          <button onclick="document.getElementById('member-detail-modal').remove(); deleteMember('${u.phone}')" class="btn-secondary" style="flex:1; border-color:var(--danger); color:var(--danger);">Delete</button>
+          <button onclick="document.getElementById('member-detail-modal').remove(); editMember('${u.phone}')" class="btn-primary" style="flex:1;">Edit Member</button>
+          <button onclick="document.getElementById('member-detail-modal').remove(); deleteMember('${u.phone}')" class="btn-secondary" style="flex:1; border-color:var(--danger); color:var(--danger);">Delete Member</button>
         </div>
       </div>
     </div>
   `;
   document.body.appendChild(modalOverlay);
-}
-
-async function handleProjectEntry(e) {
-  e.preventDefault();
-  const phone = document.getElementById("proj-member-phone").value;
-  const projectName = document.getElementById("proj-title").value.trim();
-  const amount = parseFloat(document.getElementById("proj-amount").value);
-  const date = document.getElementById("proj-date").value;
-
-  const users = await getUsersFromSupabase();
-  const user = users.find(u => u.phone === phone);
-  const memberName = user ? (user.full_name || user.fullName) : "Unknown";
-
-  if (window.supabaseClient) {
-    await window.supabaseClient.from('omega_projects').upsert([{
-      member_phone: phone, member_name: memberName, project_name: projectName, amount, date
-    }], { onConflict: 'member_phone, project_name' });
-  }
-
-  const projects = getFinancialRecords("omega_projects");
-  projects.push({ memberPhone: phone, memberName, projectName, amount, date });
-  saveFinancialRecords("omega_projects", projects);
-
-  alert("Project saved successfully!");
-  renderAdminDashboard("projects");
-}
-
-async function editMember(phone) {
-  const users = await getUsersFromSupabase();
-  let user = users.find(u => u.phone === phone);
-  if (!user) return;
-
-  const newName = prompt("Edit Full Name:", user.full_name || user.fullName);
-  if (newName === null) return;
-
-  if (window.supabaseClient) {
-    await window.supabaseClient.from('users').update({ full_name: newName.trim() }).eq('phone', phone);
-  }
-  
-  alert("Member updated successfully!");
-  renderAdminDashboard('all');
-}
-
-async function deleteMember(phone) {
-  if (confirm("Are you sure you want to delete this member?")) {
-    if (window.supabaseClient) {
-      await window.supabaseClient.from('users').delete().eq('phone', phone);
-    }
-    alert("Member deleted successfully.");
-    renderAdminDashboard('all');
-  }
 }
